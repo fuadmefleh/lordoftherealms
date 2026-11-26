@@ -31,6 +31,7 @@ import { Bonds } from '../../systems/bonds.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { RiverFlotsam } from '../../systems/riverFlotsam.js';
 import { RiverDrift } from '../../systems/riverDrift.js';
+import { GroundGoods } from '../../systems/groundGoods.js';
 import { RiverNets } from '../../systems/riverNets.js';
 import { RiverLife } from '../../systems/riverLife.js';
 import { Ports } from '../../systems/ports.js';
@@ -184,6 +185,8 @@ import { Harrying } from '../../systems/harrying.js';
 import { NamedLegacy } from '../../systems/namedLegacy.js';
 import { Climate } from '../../world/climate.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
+import { ArrivalCamps } from '../../systems/arrivalCamps.js';
+import { InnerMap } from '../../world/innerMap.js';
 
 export const WORLD_W = 80;
 export const WORLD_H = 60;
@@ -199,6 +202,9 @@ export async function loadData() {
 /** A fresh game, set up in gameSetup.js's order. */
 export function newGame(seed, gen = {}) {
     Utils.setSeed(seed);
+    // (a camp's new street surveyed on the town's map, as components/GameView.jsx wires it;
+    // without the building designs loaded the survey stands aside and streets are kept whole)
+    ArrivalCamps.setSurveyor((world, q, r) => InnerMap.surveyGrowth(world, q, r));
     // (gen.width / gen.height size the map: the New Game sheet's presets; 80×60 by default)
     const { width = WORLD_W, height = WORLD_H, ...genRest } = gen || {};
     const world = new World(width, height);
@@ -588,6 +594,8 @@ function _endDay(game) {
     if (player.boardedShip && typeof player.driftWithCurrent === 'function') player.driftWithCurrent(world);
     RiverFlotsam.processDay(world, player, world.day);
     RiverDrift.processDay(world, player, world.day * 24);
+    // Goods left on the ground: rot, finders, a town's refuse (systems/groundGoods.js)
+    GroundGoods.processDay(world, player, world.day);
     mark(game, 'RiverFlotsam+Drift.processDay');
     RiverNets.processDay(world, player, world.day, {
         goodOf: (id) => { const g = (PlayerEconomy.GOODS || {})[String(id).toUpperCase()]; return { name: (g && g.name) || id, icon: (g && g.icon) || '' }; },

@@ -1,0 +1,26 @@
+{
+    "_doc": "How the poor of every town get by (systems/townPoor.js), at each town's market turn. Each working class's households (peasants, artisans, merchants: world/townLabour.js) must buy their basket — food first, then fuel, then clothes, per head at the town's own prices of what its market sells — out of their income: the hands at work earn their sector's wage (one hand keeps 1 ÷ work heads); the idle hands earn nothing. Peasants grow part of their own food and gather fuel (ownFood, ownFuel by town size). The clergy and nobles live on tithes and rents. What a class earns over its basket goes saveShare into its savings (settlement.poor.sav: the people's share of the town's purse, never more than savPurse of it, up to savDays of its basket); what it lacks is met in order by: savings; casual day labour for the idle (hauling: dayLabour.perTrade hands a gold of the day's trade; the town's builders: dayLabour.perBuild hands a house going up; at dayLabour.wage × the land wage); alms — the realm's church (its estate purse: alms.church of the want, at most alms.churchPurse of its purse a day), the town's guilds for their artisans and merchants (alms.guild of theirs, at most alms.guildPurse of the treasury a day), the noble houses holding its estates (alms.nobles, alms.noblePurse), the town's poor rate where the realm's Poor Relief law or the town's ordinance keeps one (rate.share of the want, at most rate.purse of the town's purse a day), the crown's dole (law 'crownDole': crown.share of what is left, at most crown.treasury of the treasury a day) and an almshouse's poor box (the player's gift: settlement.poor.box, paid out at box.perDay of it a day); begging (beg.share of the want, at most beg.perGiver a day from each of the better-off); petty theft (crime.share; raises the town's crime); pawning their few things (pawn.days of their basket, coming back slowly when they are fed). What is still short goes unbought: the poor go without clothes, then fuel, then bread (settlement.poor.cut: the share of the town's need its market does not sell). Hunger (moving average, hunger.alpha): welfare falls (world/townLabour.js welfare.weights.hunger), the townsfolk sicken (systems/illness.js), past hunger.dieFrom the poorest die (hunger.deathRate of the class a day for each point over), and the welfare sends them to other towns. Coin: alms, the rate, the crown's dole and the poor box move real coin into the town's purse, where the poor spend it at the bakers'; day labour, savings, begging, theft and pawning are coin and goods passing among the town's own people (its common purse).",
+    "enabled": true,
+    "strata": { "peasants": { "basket": 0.9 }, "artisans": { "basket": 1 }, "merchants": { "basket": 1.15 } },
+    "groups": ["food", "fuel", "clothes"],
+    "ownFood": { "village": 0.45, "town": 0.25, "city": 0.1, "capital": 0.06 },
+    "ownFuel": { "village": 0.6, "town": 0.35, "city": 0.1, "capital": 0.05 },
+    "saveShare": 0.25,
+    "savDays": 40,
+    "savPurse": 0.4,
+    "startSavDays": 12,
+    "dayLabour": { "perTrade": 0.6, "perBuild": 6, "wage": 0.7, "maxShare": 0.6 },
+    "alms": { "church": 0.35, "churchPurse": 0.0006, "churchReserve": 40, "guild": 0.5, "guildPurse": 0.002, "nobles": 0.2, "noblePurse": 0.0004, "nobleReserve": 60 },
+    "rate": { "share": 0.5, "purse": 0.0015 },
+    "crown": { "share": 0.6, "treasury": 0.0008 },
+    "box": { "perDay": 0.02, "min": 1 },
+    "beg": { "share": 0.25, "perGiver": 0.004 },
+    "crime": { "share": 0.2, "crimeAdd": 3 },
+    "pawn": { "days": 8, "backPerDay": 0.05 },
+    "hunger": { "alpha": 0.25, "dieFrom": 0.12, "deathRate": 0.004, "sickFrom": 0.05, "sickPer": 3, "sickMax": 2, "noticeAt": 0.15, "noticeEvery": 30 },
+    "almshouse": { "foundAt": 200, "gifts": [50, 200, 1000], "memory": 1.5, "happiness": 0.02 },
+    "named": {
+        "_doc": "The named townsfolk at payday (systems/townJobs.js payday): what one cannot pay for their board is met by the dole — the town's almshouse box and the church's alms (TownPoor.namedRelief, real coin into their purse); still short by more than hungryShort of it, they go hungry (person.hungry, person.starve seasons in a row). Hungry, the jobless take day labour at labourChance a season (when the town hires: its day labour), turn to begging, or leave town at leaveChance; a starving one sickens (systems/illness.js risk × hungry, × starve) and after starveSeasons seasons may die of it (dieChance a season, in a long dearth or with the town's poor hungry).",
+        "hungryShort": 0.4, "labourChance": 0.35, "leaveChance": 0.12, "starveSeasons": 2, "dieChance": 0.18, "sickHungry": 1.5, "sickStarve": 0.4
+    }
+}

@@ -737,7 +737,8 @@ Object.assign(InnerMap, {
         // (a babe's parents and the children keep about the cradle's floor by day: householdRooms.js)
         const byCradle = together && this._hhCradleFloor ? this._hhCradleFloor(npc, b) : null;
         if (byCradle != null) return byCradle;
-        if (home && home.q === b.q && home.r === b.r) return h % n;
+        // (a household of a tenement or a row keeps to its own floor: world/innerMap/townLife.js)
+        if (home && home.q === b.q && home.r === b.r) return npc._homeSlot != null ? npc._homeSlot % n : h % n;
         if (this._isLodger && this._isLodger(npc, b)) return 1 + (h % (n - 1));
         return 0;
     },

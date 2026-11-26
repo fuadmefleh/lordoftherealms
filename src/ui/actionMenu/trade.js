@@ -32,6 +32,7 @@ import { worksCard } from './worksUI.js';
 import { Construction } from '../../systems/construction.js';
 import { Mints } from '../../systems/mints.js';
 import { distributionSection } from './distribution.js';
+import { GroundGoods } from '../../systems/groundGoods.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -58,6 +59,8 @@ export function setMarketNav(game, tile, active) {
     if (tile.settlement.guilds) items.push({ key: 'guilds', more: true, label: '⚒️ Guilds', title: 'The town guilds: tolls, membership, contracts', run: go(() => ActionMenu.showGuildhall(game, null)) });
     items.push({ key: 'laws', more: true, label: '📜 Laws', title: 'The laws of the realm: private prisons, land for foreigners, punishment', run: go(() => ActionMenu.showLaws(game, 'here')) });
     items.push({ key: 'tariffs', more: true, label: '⚖️ Tariffs', title: "The crown's duties, export bans, embargoes and treaties", run: go(() => ActionMenu.showTradePolicy(game, 'here')) });
+    // What the townsfolk picked up in the streets and kept, sold cheap (systems/groundGoods.js secondHand)
+    if (typeof game.ui.showSecondHand === 'function' && GroundGoods.secondHand(tile.settlement).length) items.push({ key: 'secondhand', more: true, label: '♻️ Second-hand', title: 'Odd things the townsfolk found lying about and kept, sold cheap', run: go(() => game.ui.showSecondHand(tile.q, tile.r)) });
     // Views with tabs of their own keep this bar and show theirs as sub-tabs
     // (uiKit.panelTabs): the Merchant Prince's Invest/Warehouse/Contracts are
     // this bar's tabs, the Ledger's and the Tariffs' sit under theirs

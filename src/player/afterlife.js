@@ -72,6 +72,7 @@ import { CourierRiders } from '../systems/courierRiders.js';
 import { Hospitality } from '../systems/hospitality.js';
 import { RiverFlotsam } from '../systems/riverFlotsam.js';
 import { RiverDrift } from '../systems/riverDrift.js';
+import { GroundGoods } from '../systems/groundGoods.js';
 import { RiverNets } from '../systems/riverNets.js';
 import { FishTraps } from '../systems/fishTraps.js';
 import { RiverLife } from '../systems/riverLife.js';
@@ -222,6 +223,7 @@ const WORLD_DAY = [
     // riverDrift.js, riverNets.js, riverLife.js — the nets lie in the world, not the packs)
     { sys: 'RiverFlotsam', run: (w) => RiverFlotsam.processDay(w, null, _num(w.day)) },
     { sys: 'RiverDrift', run: (w) => RiverDrift.processDay(w, null, _num(w.day) * 24) },
+    { sys: 'GroundGoods', run: (w) => GroundGoods.processDay(w, null, _num(w.day)) },
     { sys: 'RiverNets', run: (w) => RiverNets.processDay(w, null, _num(w.day)) },
     { sys: 'FishTraps', run: (w) => FishTraps.processDay(w, null, _num(w.day)) },
     { sys: 'RiverLife', run: (w) => RiverLife.processDay(w, null, _num(w.day)) },

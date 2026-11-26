@@ -284,8 +284,10 @@ export const Townsfolk = {
         // Crowded towns: the people the player knows are always about
         const cap = Math.max(4, Math.round((folk.target || shown.length) * 1.3));
         if (shown.length <= cap) return shown;
-        const known = shown.filter(p => p.mem && p.mem.timesSpoken > 0);
-        const rest = shown.filter(p => !(p.mem && p.mem.timesSpoken > 0));
+        // (and the newcomers camped outside the town, so its camp has its people: systems/arrivalCamps.js)
+        const keep = p => (p.mem && p.mem.timesSpoken > 0) || !!p.camp;
+        const known = shown.filter(keep);
+        const rest = shown.filter(p => !keep(p));
         const rng = _rng(world, folk, day, 'crowd');
         for (let i = rest.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
@@ -1106,6 +1108,8 @@ export const Townsfolk = {
         npc.job = p.job ? p.job.id : null;
         if (p.job && !p.retired) npc.roleTitle = TownJobs.title(p) || npc.roleTitle;
         npc.uid = `${folk.q},${folk.r}#${p.id}`;
+        // (gaunt with hunger: seasons short of their board with no dole to make it up — systems/townJobs.js payday)
+        npc.gaunt = !!p.starve;
         npc.familyGroupId = null;
         npc.spouseId = null;
         npc.parentIds = [];
@@ -1489,7 +1493,7 @@ export const Townsfolk = {
         if (p.died != null) return { kind: 'dead', text: `Died ${Townsfolk.when(p.died, world)}, aged ${Townsfolk.age(p, day)} — ${p.cause}` };
         if (p.away && p.away.withPlayer) return { kind: 'away', text: `Away — ${p.away.to}, since ${Townsfolk.when(p.away.d, world).replace(/^in /, '')}` };
         if (p.away) return { kind: 'away', text: `Moved to ${p.away.to} ${Townsfolk.when(p.away.d, world)}` };
-        return { kind: 'here', text: `${Townsfolk.roleTitle(p)}, ${Townsfolk.age(p, day)}${p.preg && !p.preg.aff ? ', with child' : ''}` };
+        return { kind: 'here', text: `${Townsfolk.roleTitle(p)}, ${Townsfolk.age(p, day)}${p.preg && !p.preg.aff ? ', with child' : ''}${p.starve ? (p.starve >= 2 ? ', starving' : ', gaunt with hunger') : ''}` };
     },
 
     /**

@@ -131,6 +131,8 @@ import './bank.js';
 import './merchantPrince.js';
 import './labour.js';
 import './migration.js';
+// The newcomers' camp outside a town: its houses, its weight on the town, the player's help (systems/arrivalCamps.js)
+import './arrivalCamp.js';
 import './guilds.js';
 import './merchantLedger.js';
 import './hinterland.js';

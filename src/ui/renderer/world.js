@@ -85,6 +85,8 @@ Object.assign(Renderer.prototype, {
 
         // The dead on show: a pike with a head on it by the towns that keep them (systems/gibbets.js)
         this.renderDeadDisplays(ctx);
+        // Newcomers camped outside a town: a little tent by it (systems/arrivalCamps.js)
+        this.renderArrivalCamps(ctx);
 
         // Render infrastructure (roads, bridges, irrigation)
         this.renderInfrastructure(ctx);

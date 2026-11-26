@@ -9,6 +9,7 @@ import { Holdings } from '../systems/holdings.js';
 import { Taxation } from '../systems/marketDynamics.js';
 import { Economy } from '../world/economy.js';
 import { Colonization } from '../world/colonization.js';
+import { VillageFounding } from '../world/villageFounding.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { Petitions } from '../systems/petitions.js';
 import { Ships } from '../systems/ships.js';
@@ -304,6 +305,24 @@ describe('Existing systems read the projects', () => {
         expect(sellAfter).toBeGreaterThan(sellBefore);
         for (const e of better) if (e.buy !== null) expect(e.sell).toBeLessThan(e.buy);
         expect(Ships._harbourAt(world, 1, 0)).toBe(true);
+    });
+
+    it('hired settlers reach a colony of 10 or more, whatever its loyalty', () => {
+        // The bug: arrivals only ran for colonies under 10 people (and, in a realm, loyalty > 40)
+        const colony = own(player, world, 9, 9, { population: 12 });
+        colony.colony.loyalty = 20;
+        const source = addTown(world, 3, 3, { population: 2000, colony: null });
+        const res = Colonization.recruitSettlers(player, world.getTile(3, 3), world.getTile(9, 9), world, 40, 'hire');
+        expect(res.success).toBe(true);
+        const sent = res.recruited;
+        expect(sent).toBeGreaterThan(0);
+        expect(source.population).toBe(2000 - sent);
+        for (let d = 0; d < 30 && colony.colony.recruitment.enRoute > 0; d++) {
+            world.day++;
+            VillageFounding.processDay(world, player, {});
+        }
+        expect(colony.colony.recruitment.enRoute).toBe(0);
+        expect(colony.population).toBeGreaterThanOrEqual(12 + sent);
     });
 
     it('Tavern and Inn draws settlers to a young colony', () => {

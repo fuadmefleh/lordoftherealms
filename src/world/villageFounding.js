@@ -473,6 +473,8 @@ export const VillageFounding = {
         const held = VillageFounding._held(world, player);
         for (const h of held) {
             const s = h.settlement;
+            // Settlers recruited for it come in whatever its size, loyalty or realm
+            Colonization._deliverSettlers(h.tile, world);
             const realm = s.kingdom ? world.getKingdom(s.kingdom) : null;
             if (realm && realm.isAlive) continue;
             // No realm runs this place's year: an empty colony takes in its recruits,

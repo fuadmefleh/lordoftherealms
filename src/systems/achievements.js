@@ -103,12 +103,7 @@ export const Achievements = {
             description: 'Explore 100 tiles',
             icon: '🗺️',
             check: (player, world) => {
-                let count = 0;
-                for (let r = 0; r < world.height; r++) {
-                    for (let q = 0; q < world.width; q++) {
-                        if (world.tiles[r][q].explored) count++;
-                    }
-                }
+                const count = Achievements._exploredCount(world);
                 // (the land a start already knows — a family's town, a lord's realm — is not explored by you)
                 const known = Number(player.achievements && player.achievements.exploredAtStart) || 0;
                 return count - known >= 100;
@@ -121,12 +116,7 @@ export const Achievements = {
             description: 'Explore 500 tiles',
             icon: '🧭',
             check: (player, world) => {
-                let count = 0;
-                for (let r = 0; r < world.height; r++) {
-                    for (let q = 0; q < world.width; q++) {
-                        if (world.tiles[r][q].explored) count++;
-                    }
-                }
+                const count = Achievements._exploredCount(world);
                 return count >= 500;
             },
             tier: 'silver',
@@ -747,6 +737,21 @@ export const Achievements = {
     /**
      * Check for new achievements
      */
+    /** Tiles explored (counted once per checkAchievements pass: two deeds ask it). */
+    _exploredCount(world) {
+        const cache = Achievements._deedCache;
+        if (cache && cache.world === world && cache.explored != null) return cache.explored;
+        let count = 0;
+        for (let r = 0; r < world.height; r++) {
+            const row = world.tiles[r];
+            for (let q = 0; q < world.width; q++) {
+                if (row[q].explored) count++;
+            }
+        }
+        if (cache) { cache.world = world; cache.explored = count; }
+        return count;
+    },
+
     checkAchievements(player, world) {
         if (!player.achievements) {
             Achievements.initialize(player);

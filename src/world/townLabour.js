@@ -30,6 +30,9 @@
 // (`ensure`). Tuned in data/labour.json.
 
 import { DataLoader } from '../core/dataLoader.js';
+import { TownGrowth } from './townGrowth.js';
+// (a town's houses and its crowding: world/townHousing.js)
+import { TownHousing } from './townHousing.js';
 
 export const STRATA = ['peasants', 'artisans', 'merchants', 'clergy', 'nobles'];
 export const SECTORS = ['land', 'craft', 'trade'];
@@ -506,6 +509,10 @@ export const TownLabour = {
         townWork = wn > 0 ? townWork / wn : 1;
         townWage = wn > 0 ? townWage / wn : 0.5;
         const wa2 = 1 - Math.pow(1 - _clamp(_num(Wf.alpha, 0.3), 0, 1), k / 4);
+        // Hunger among each class's poor (systems/townPoor.js: settlement.poor.h) and the town's
+        // crowding (world/townHousing.js): both weigh on the welfare, and so on who stays
+        const ph = settlement.poor && settlement.poor.h;
+        const crowdPen = settlement.housing ? TownHousing.welfarePenalty(settlement) : 0;
         let all = 0;
         for (const s of STRATA) {
             const sec = C.sectorOf[s];
@@ -520,7 +527,7 @@ export const TownLabour = {
             const wage = sec ? realWage(sec) : townWage;
             const tax = ctx.taxRate != null ? (_num(ctx.taxRate) - 0.15) * _num(Wf.taxWeight[s], 1) : 0;
             const target = _clamp(_num(w.basket) * basket + _num(w.work) * work + _num(w.wage) * wage + _num(w.safety) * (1 - danger)
-                - _num(w.famine) * famine - tax, 0, 1);
+                - _num(w.famine) * famine - tax - _num(w.hunger, 0.8) * _num(ph && ph[s]) - crowdPen * _num(Wf.crowdWeight && Wf.crowdWeight[s], 1), 0, 1);
             const cur = Number.isFinite(lab.wel[s]) ? lab.wel[s] : target;
             lab.wel[s] = _r3(cur + (target - cur) * wa2);
             all += lab.sh[s] * lab.wel[s];
@@ -530,7 +537,10 @@ export const TownLabour = {
 
         // Crime: idle hands and the misery of the poor
         const Cr = C.crime;
-        const crimeT = _clamp(Math.max(0, idleShare - _num(Cr.idleFree)) * _num(Cr.perIdle) + Math.max(0, _num(Cr.poorLine) - lab.wel.peasants) * _num(Cr.perMisery), 0, 1);
+        // (and the newcomers camped outside with nothing, while the camp stands: world/townGrowth.js;
+        // and the hungry poor's petty theft: systems/townPoor.js)
+        const crimeT = _clamp(Math.max(0, idleShare - _num(Cr.idleFree)) * _num(Cr.perIdle) + Math.max(0, _num(Cr.poorLine) - lab.wel.peasants) * _num(Cr.perMisery)
+            + TownGrowth.campCrime(settlement) + _num(settlement.poor && settlement.poor.crime), 0, 1);
         const ca = 1 - Math.pow(1 - _clamp(_num(Cr.alpha, 0.25), 0, 1), k / 4);
         lab.crime = _r3(_num(lab.crime) + (crimeT - _num(lab.crime)) * ca);
 

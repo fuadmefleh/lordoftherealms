@@ -12,6 +12,7 @@ import { InnerMapSeaFight } from '../innerMapSeaFight.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { Cartography } from '../../systems/cartography.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
+import { InnerMapGroundGoods } from '../innerMapGroundGoods.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapMining } from '../innerMapMining.js';
 
@@ -78,6 +79,13 @@ export async function enterInnerMap(worldQ, worldR) {
             InnerMapAnimals.placeOwned(this, worldQ, worldR);
         } catch (err) {
             console.warn('[Game] Could not place your beasts on the inner map.', err);
+        }
+
+        // Goods left lying on this hex, as the world keeps them; what was taken while you were away (ui/innerMapGroundGoods.js)
+        try {
+            InnerMapGroundGoods.onEnter(this);
+        } catch (err) {
+            console.warn('[Game] Could not lay the goods on the ground.', err);
         }
 
         // A hex you have charted you know end to end: its whole map lies open (systems/cartography.js)

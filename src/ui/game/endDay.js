@@ -4,6 +4,7 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Throne, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 import { DayClock } from './dayClock.js';
+import { DayTurn } from './dayTurn.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { PlayerWorks } from '../../player/playerWorks.js';
 import { TradeLines } from '../../player/tradeLines.js';
@@ -21,6 +22,8 @@ import { Commissions } from '../../systems/commissions.js';
 import { Traits } from '../../systems/traits.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { RiverDrift } from '../../systems/riverDrift.js';
+import { GroundGoods } from '../../systems/groundGoods.js';
+import { InnerMapGroundGoods } from '../innerMapGroundGoods.js';
 import { RiverFlotsam } from '../../systems/riverFlotsam.js';
 import { RiverNets } from '../../systems/riverNets.js';
 import { FishTraps } from '../../systems/fishTraps.js';
@@ -315,12 +318,19 @@ export function endDay() {
     // The panel open as the day ends redraws with the new day's values (ui/panelRefresh.js)
     const panelBefore = skipping ? null : PanelRefresh.snapshot(this.ui);
 
-    // Use setTimeout to allow UI to update (show loading state) before heavy processing
-    const runTurn = () => {
+    // The day's steps, run at once or a few milliseconds a frame (ui/game/dayTurn.js):
+    // each `yield` is a place the turn may stop for a frame. In the browser the day runs
+    // across frames so the map keeps drawing; tests and the headless harness run it at once.
+    const sliced = !!this.sliceDayEnd && DayTurn.canSlice();
+    // Panels the day opens for afterwards wait for its last step (as they did when it all ran in one task)
+    const deferred = [];
+    const later = (fn, ms = 0) => { if (sliced) deferred.push([fn, ms]); else setTimeout(fn, ms); };
+    const turnSteps = function* () {
         let heldScan = false;
         try {
             // A choice scene left open (sea, digs, prison, duties) is settled first (ui/actionMenu/choiceScenes.js)
             settleScene(this);
+            yield;
             // The day's last hours: points left over go on the character's own
             // upkeep — a wash, clean clothes, a bed, an evening's company
             // (player/autoUpkeep.js; Settings → The Day's Last Hours)
@@ -330,11 +340,13 @@ export function endDay() {
             const upkeep = lastHours.upkeep;
             if (upkeep) this.ui.showNotification('🌙 The Day\'s Last Hours', upkeep.text, 'info');
             if (lastHours.order) this.ui.showNotification(lastHours.order.title, lastHours.order.text, lastHours.order.ran ? 'info' : 'warning');
+            yield;
             // The courts (player/trials.js): an arrest held for trial before the jail's night,
             // the trial due, cases before your own court, the Houses' lawsuits
             // Trial by combat and ordeal (player/ordeals.js): perjury found out, a kinsman accused, a rival's wager of battle, a champion wanted
             for (const n of Ordeals.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             for (const n of Trials.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Process player's daily activities
             const playerResults = PlayerActions.endDay(this.player, this.world);
             // A night between: whatever a deep dive took, the breath is back (player/diving.js)
@@ -349,7 +361,7 @@ export function endDay() {
                 for (const n of playerResults.jailUpdate.notices || []) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // A day's march in chains: what happened on the road, or the jail at the end of it
                 const march = playerResults.jailUpdate.march;
-                if (march) setTimeout(() => ActionMenu.showMarch(this, march), 0);
+                if (march) later(() => ActionMenu.showMarch(this, march));
             }
 
             // Show title update notifications
@@ -381,6 +393,7 @@ export function endDay() {
                 }
             }
 
+            yield;
             // The council's factions drift with how you govern
             if (typeof Councils !== 'undefined') {
                 const council = Councils.processDaily(this.player, this.world);
@@ -388,19 +401,25 @@ export function endDay() {
                 if (council.removed) this.ui.showNotification('🏛️ No Confidence', 'The council has voted you out of office.', 'error');
             }
 
+            yield;
             // Process world turn
             // Aqueducts/herbalism/plague prevention grow your colonies;
             // philosophy/printing press steady them
             // (the day's settlement scan is kept for the systems below; released in finally)
             if (typeof this.world.holdSettlementScan === 'function') { this.world.holdSettlementScan(); heldScan = true; }
-            const result = this.world.advanceDay(this.player, {
+            const dayOpts = {
                 playerBonuses: {
                     colonyGrowth: Technology.getEffectTotal(this.player, 'settlementGrowthBonus')
                         + Technology.getEffectTotal(this.player, 'populationGrowthBonus'),
                     colonyLoyalty: 0.1 * Technology.getEffectTotal(this.player, 'stabilityBonus'),
                     colonyFood: Technology.getEffectTotal(this.player, 'settlementFoodBonus'),
                 },
-            });
+            };
+            // (the world's day in steps too: World.advanceDaySteps; a stand-in world without them runs it at once)
+            const result = typeof this.world.advanceDaySteps === 'function'
+                ? yield* this.world.advanceDaySteps(this.player, dayOpts)
+                : this.world.advanceDay(this.player, dayOpts);
+            yield;
             // Before coin (world/barter.js): the purse in kind stays on while any town
             // barters; the heralds tell when coin emerges, spreads, or reaches every market
             Barter.syncPlayer(this.world, this.player);
@@ -409,8 +428,10 @@ export function endDay() {
                 if (bn && bn.day === this.world.day) this.ui.showNotification(bn.kind === 'firstCoin' ? '⚖️ The First Coin' : '⚖️ Coin Spreads', bn.text, 'info');
             }
             this.player.endDay(this.world);
+            yield;
             // Low needs nag once per day on the world map too
             if (typeof this._checkNeedWarnings === 'function') this._checkNeedWarnings();
+            yield;
             // World events on the player's tile: blizzards slow travel and
             // freeze armies camped in the open
             const eventEffects = WorldEvents.applyPlayerDailyEffects(this.world, this.player);
@@ -419,6 +440,7 @@ export function endDay() {
             }
             this._reportWeather(eventEffects);
 
+            yield;
             // Thirst: the day's drain, drinking what is to hand, the parched days (player/thirst.js)
             {
                 const thirstDay = Thirst.processDay(this.player, this.world, { weather: eventEffects.weather });
@@ -429,6 +451,7 @@ export function endDay() {
                 }
             }
 
+            yield;
             // Wounds and sickness: mend or fester, pass or worsen; new illness
             // from the night's exposure, the food, the swamp, plague or the sea
             const ailmentDay = Ailments.processDay(this.world, this.player, {
@@ -443,9 +466,11 @@ export function endDay() {
             this.player.updateVisibility(this.world, 4);
             this._reportExposedDeceptions();
 
+            yield;
             // ── Check for hostile unit encounters (raiders/pirates) ──
             this._checkHostileEncounters();
 
+            yield;
             // Apply spy-revealed vision tiles (after normal visibility reset)
             if (typeof Espionage !== 'undefined') {
                 Espionage.applySpyVision(this.player, this.world);
@@ -465,6 +490,7 @@ export function endDay() {
                     kinMeal.text, kinMeal.refused ? 'warning' : 'info');
             }
 
+            yield;
             // Before the hunger comes: no meal on these stalls this purse can buy (player/begging.js)
             {
                 const hw = this.player.starvationDays > 0 ? null : Begging.hungerWarning(this.player, this.world);
@@ -486,16 +512,20 @@ export function endDay() {
                 }
             }
 
+            yield;
             // Reforged relics' daily blessings
             LegendaryArtifacts.processDaily(this.player);
 
+            yield;
             // Process housing maintenance
             if (typeof Housing !== 'undefined') {
                 Housing.processDaily(this.player, this.world);
             }
+            yield;
             // Your household: wages, the larder, guests, the rooms' good (player/household.js)
             for (const n of Household.processDay(this.player, this.world).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Process ship daily events
             if (typeof Ships !== 'undefined') {
                 // Capture ship statuses before processing
@@ -553,9 +583,11 @@ export function endDay() {
                 for (const n of officersDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
 
+            yield;
             // The harbours: dues at a ship's arrival, what you owe, careened hulls, cargo over the quay (systems/ports.js)
             for (const n of Ports.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Standing trade lines: caravans and ships going round their stops,
             // buying and selling by the player's rules (player/tradeLines.js)
             {
@@ -563,6 +595,7 @@ export function endDay() {
                 for (const n of linesDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
 
+            yield;
             // Building work on everything the player has under way: properties,
             // temples, cultural buildings, roads (player/playerWorks.js — paced by
             // season, weather and hired crews, systems/construction.js)
@@ -579,6 +612,7 @@ export function endDay() {
                 if (works.completed.some(c => c.kind === 'infrastructure')) this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
             }
 
+            yield;
             // Process relationships, aging, and dynasty
             if (typeof Relationships !== 'undefined') {
                 // Daily relationship events (marriage events, NPC courtship, childbirth)
@@ -693,6 +727,7 @@ export function endDay() {
                 Relationships.prepareForSave(this.player);
             }
 
+            yield;
             // Process the House (dynasty spine) — Prestige decay + ambitions
             if (typeof House !== 'undefined') {
                 const houseResult = House.processDaily(this.player, this.world);
@@ -746,6 +781,7 @@ export function endDay() {
                 for (const n of demandDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
 
+            yield;
             // Court petitions — dilemmas brought to your holdings; unanswered ones expire
             const court = Petitions.processDay(this.player, this.world);
             for (const pet of court.expired) {
@@ -758,6 +794,7 @@ export function endDay() {
                     `${pet.title} — hear them at Court (action menu at your holdings) within ${Petitions.daysLeft(pet, this.world)} day(s).`, 'info');
             }
 
+            yield;
             // Delves — an unfinished delve ends, injuries mend, a cursed idol bites,
             // awakened guardians roam until slain or their time passes
             const delveDay = Delves.processDay(this.world, this.player);
@@ -772,91 +809,127 @@ export function endDay() {
             for (const name of delveDay.slain) this.ui.showNotification('⚔️ Guardian Slain', `${name} will trouble the land no more.`, 'success');
             for (const name of delveDay.faded) this.ui.showNotification('🌫️ Guardian Returns', `${name} has gone back to the depths.`, 'info');
 
+            yield;
             // Rival adventurers — their deeds near you, races, ambushes, slander
             const rivalDay = Rivals.processDay(this.world, this.player);
             for (const n of rivalDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Nemeses — named enemies who remember you, learn your habits and strike at your worst (systems/nemesis.js)
             for (const n of Nemesis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Blood feuds — families, Houses and crowns owing each other (and you) blood; avengers, wergild, the generations (systems/bloodFeuds.js)
             for (const n of BloodFeuds.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The law of fratricide — the bowstring at the accession, the spared who plot, the mothers' schemes; AI realms' bowstrings and harems (systems/fratricide.js)
             for (const n of Fratricide.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The tombs of dead kings and House heads; hard crowns put an enemy's corpse on trial (systems/cadaverSynod.js)
             for (const n of CadaverSynod.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Houses wiped from the world: AI conquerors' damnatio, those who remember, names restored (systems/damnatio.js)
             for (const n of Damnatio.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Wanted: each realm's long charge sheet, posters, bounty hunters on your trail, orphans who grow into avengers (systems/wanted.js)
             for (const n of Wanted.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Profane crimes: fake relics found out, a desecrated House's grudge held and passed on (systems/profaneCrimes.js)
             for (const n of ProfaneCrimes.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Crimes against the blood — suspicion, exposure, grudges and the household's long memory (systems/kinCrimes.js)
             for (const n of KinCrimes.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Unfinished business of the House: quests from its own history — old grudges, debts, favours, lost heirlooms (systems/houseQuests.js)
             for (const n of HouseQuests.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Sagas — world storylines turning a chapter (systems/sagas.js)
             const sagaDay = Sagas.processDay(this.world, this.player);
             for (const n of sagaDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Whispers — court scandals hatching, spreading, proven or debunked; your planted tales traced (systems/whispers.js)
             const whisperDay = Whispers.processDay(this.world, this.player);
             for (const n of whisperDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Promises made in free talk that came due unkept: the one promised, and their family, remember (systems/npcChatImpact.js)
             for (const n of NpcChatImpact.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Hearsay: what you told folk spreads through town and on to the next (systems/hearsay.js)
             for (const n of Hearsay.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Friends & Bonds: friendships grow, fade, act for you or turn on you (systems/bonds.js)
             for (const n of Bonds.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Devotion — vows kept or broken, pilgrimages overdue (systems/devotion.js); the soul pact's debt (systems/soulPact.js)
             for (const n of Devotion.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             for (const n of SoulPact.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Stolen maps found out: bounties, heat, an owner waiting in his town (systems/mapTheft.js)
             for (const n of MapTheft.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Court letters — lords, liege, rival Houses and family write; loans fall due, promises judged (systems/courtLetters.js)
             const letterDay = CourtLetters.processDay(this.world, this.player);
             for (const n of letterDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The post — courier houses' week, Royal Post charters (systems/couriers.js); the player's
             // letters arrive, are lost, robbed or read, and replies come home (systems/mail.js)
             for (const n of Couriers.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // ...the riders on the map ride first, so a letter's rider is at its gates on its day (systems/courierRiders.js;
             // the headless harness skips it: its letters stay abstract)
             for (const n of CourierRiders.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             for (const n of Mail.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Hospitality — the morning after a night's lodging, your houses' week, the town houses' prices (systems/hospitality.js)
             for (const n of Hospitality.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // A ship lying at sea overnight goes with the current (world/oceanCurrents.js)
             if (this.player && this.player.boardedShip && !InnerMap.active && typeof this.player.driftWithCurrent === 'function') {
                 const d = this.player.driftWithCurrent(this.world);
                 if (d) this.ui.showNotification('🌊 The Current', `In the night ${d.name} carried your ship a league to the ${OceanCurrents.sideName(d.dir)}.`, 'info');
             }
+            yield;
             // Things adrift on the rivers: carried on through the night, hex by hex (systems/riverDrift.js;
             // the game loop carries them by the hour, ui/innerMapRiverDrift.js)
             // ...and the rivers bring down things of their own: sticks, logs, reeds, what people lose (systems/riverFlotsam.js)
             RiverFlotsam.processDay(this.world, this.player, this.world.day);
             RiverDrift.processDay(this.world, this.player, this.world.day * 24);
+            yield;
+            // Goods left on the ground: perishables rot, finders carry piles off to somewhere real, towns throw out spoiled food
+            // (systems/groundGoods.js; the street map the player is on is laid again: ui/innerMapGroundGoods.js)
+            for (const n of GroundGoods.processDay(this.world, this.player, this.world.day).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            if (InnerMap.active) InnerMapGroundGoods.bind(this);
+            yield;
             // Your fishing nets: the day's fish, what drifted in, a tear, a thief (systems/riverNets.js)
             for (const n of RiverNets.processDay(this.world, this.player, this.world.day, {
                 goodOf: (id) => { const g = (PlayerEconomy.GOODS || {})[String(id).toUpperCase()]; return { name: (g && g.name) || id, icon: (g && g.icon) || '🐟' }; },
                 rollBonus: (net) => RiverLife.netRollBonus(this.world, net),
             }).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Your fish traps: the hours' fish, a poacher in the night, an otter, a flood (systems/fishTraps.js)
             for (const n of FishTraps.processDay(this.world, this.player, this.world.day).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // River life: spring floods, the water bailiff and poachers at your nets, fish going off (systems/riverLife.js)
             for (const n of RiverLife.processDay(this.world, this.player, this.world.day).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Your beasts: fodder, eggs and milk, births, sickness, wolves (systems/livestock.js)
             for (const n of Livestock.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Your dog, cat, hawk and horse: hungry, fed, older, closer to you (systems/animalCompanions.js)
             for (const n of AnimalCompanions.processDay(this.world, this.player, { larder: (key) => { const h = Household.home(this.player, key); return h ? h.larder : null; } }).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Your own fields: crops grow, thirst, ripen, freeze or rot (systems/crops.js)
             for (const n of Crops.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Hired work finished in a town's mill, bakery, smithy… (systems/commissions.js)
             for (const n of Commissions.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Tongues: living among speakers teaches; the interpreter is paid (systems/languages.js)
             for (const n of Languages.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The Dawn of Man: the player's clan made camp for good — the family moves in (player/dawnBirth.js)
@@ -864,25 +937,32 @@ export function endDay() {
                 const settled = DawnBirth.sync(this.player, this.world);
                 if (settled) this.ui.showNotification('🔥 Home', settled, 'success');
             }
+            yield;
             // Under your parents' roof: curfew, the leash, duties, allowance, trust, coming of age (player/parentage.js)
             for (const n of Parentage.processDay(this.player, this.world).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             if (ActionMenu.updateLettersBadge) ActionMenu.updateLettersBadge(this);
 
+            yield;
             // The towns' gangs — protection, dens, the black market, wages, smuggling, wars, raids, betrayals (systems/gangs.js)
             for (const n of Gangs.processDay(this.world, this.player).notices.slice(0, 5)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // A back room in a tavern of yours, where gaming is forbidden: the watch may find it (systems/backRooms.js)
             for (const n of BackRooms.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The town pits' fight nights: bouts, the bear, the birds, your bets and fighters, the crowns' bans (systems/pitFights.js)
             for (const n of PitFights.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Outlaw lairs — formation, growth, raiding parties, realm expeditions (systems/outlawLairs.js)
             const lairDay = OutlawLairs.processDay(this.world, this.player);
             for (const n of lairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Uncharted lands — sightings at sea, finds close by, rivals' finds, claims (systems/discovery.js)
             const discoveryDay = Discovery.processDay(this.world, this.player);
             for (const n of discoveryDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Sea rovers — named captains grow and are replaced, infamy cools; at sea, hunters or a vengeful captain may come for you (systems/pirates.js)
             const pirateDay = Pirates.processDay(this.world, this.player);
             for (const n of pirateDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -891,10 +971,12 @@ export function endDay() {
                 if (encounter && typeof document !== 'undefined') ActionMenu.showScene(this, 'sea', encounter);
                 else if (encounter) Pirates.autoResolve(this.player, this.world, encounter);
             }
+            yield;
             // Sea reavers come ashore on your coastal holdings near their havens (systems/landings.js)
             const landingDay = Landings.processDay(this.world, this.player);
             for (const n of landingDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Kingdoms at war with the player — ultimatums, war hosts, sieges
             const war = RealmWars.processDaily(this.player, this.world);
             for (const u of war.ultimatums) {
@@ -915,14 +997,17 @@ export function endDay() {
             for (const e of war.ended) {
                 if (e) this.ui.showNotification('🕊️ Peace', `The war with ${e.war.name} is over.`, 'info');
             }
+            yield;
             // Sieges of your holdings — stores, works, storms, convoys, endings (systems/holdingSieges.js)
             const holdingSiegeDay = HoldingSieges.processDay(this.world, this.player);
             for (const n of holdingSiegeDay.notices) this.ui.showNotification(n.title, n.text, n.type);
+            yield;
             // Directed opposition — the realms weigh your power; leagues form, march, break (systems/coalitions.js);
             // rival Houses' bought townsfolk inform, sabotage, skim (systems/rivalAgents.js)
             for (const n of Coalitions.processDay(this.world, this.player, { armyStrength: PlayerMilitary.getArmyStrength(this.player) }).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             for (const n of RivalAgents.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Claims & Crowns — succession crises, a war for a throne, the realm you rule
             const throne = Throne.processDaily(this.player, this.world, { armyStrength: PlayerMilitary.getArmyStrength(this.player) });
             for (const c of throne.crises) {
@@ -947,40 +1032,56 @@ export function endDay() {
             for (const name of throne.peace) {
                 this.ui.showNotification('🕊️ Royal Envoys', `Your envoys win peace with ${name}.`, 'info');
             }
+            yield;
             // The royal court — council, edicts, vassals, factions and revolts (systems/kingship.js)
             const courtDay = Kingship.processDay(this.world, this.player);
             for (const n of courtDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Far crowns in personal union: viceroys, the lords' temper, offers of a crown, the high crown (systems/highCrowns.js)
             for (const n of HighCrowns.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Realms carved out of yours in a war of succession: their wars to take the rest (systems/crownSuccession.js)
             for (const n of CrownSuccession.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Sieges — the siege in progress, tribute owed (systems/sieges.js)
             const siegeDay = Sieges.processDay(this.world, this.player);
             for (const n of siegeDay.notices) this.ui.showNotification(n.title, n.text, n.type);
+            yield;
             // Atrocities — hostages' ultimatum, the name for cruelty fading (systems/atrocities.js)
             for (const n of Atrocities.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The fate of prisoners — a column left undecided, ransom talks, turncoats, your men held, blinded columns, stakes, the realms' own captives (player/prisonerFates.js)
             for (const n of PrisonerFates.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Maiming — harsh realms take thieves' hands, raided towns count their maimed, an enemy's blades find your children (systems/maiming.js)
             for (const n of Maiming.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Executions — proclaimed days, the realms' scaffolds, martyrs' shrines, the truth about the innocent (systems/executions.js)
             for (const n of Executions.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The dead on show: the realms' heads over their gates, rot and fall, the kin and the priests at night; trophies' envoys (systems/gibbets.js)
             for (const n of Gibbets.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Penal labour — your convicts at the mines and oars, the crown's gangs, the realms' courts' lash and iron (systems/penalLabour.js)
             for (const n of PenalLabour.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Flaying — the realms' crowns flay their crooked officials and traitors (systems/flaying.js)
             for (const n of Flaying.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The walled-up dead — the servants' talk, the haunted houses, the night's apparitions (systems/immurement.js)
             for (const n of Immurement.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Decimation — steel and hatred in a decimated army, deserters; the realms decimate their own (player/decimation.js)
             for (const n of Decimation.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The inquisition: inquisitors on their rounds, hearings, burnings, the player summoned (systems/inquisition.js)
             for (const n of Inquisition.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The dungeon — an innocent you condemned found innocent; a rival House puts your hostage child to the question (systems/interrogation.js)
             for (const n of Interrogation.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Holdings — construction, governors, garrisons, unrest and rebellion, bandit raids
             const holdingsDay = Holdings.processDay(this.player, this.world);
             for (const c of holdingsDay.completed) this.ui.showNotification('🏗️ Project Finished', c.text, 'success');
@@ -988,23 +1089,28 @@ export function endDay() {
             for (const r of holdingsDay.rebellions) this.ui.showNotification('🔥 Rebellion!', r.text, 'error');
             for (const l of holdingsDay.lost) this.ui.showNotification('🏴 Holding Lost', l.text, 'error');
             for (const text of holdingsDay.notices) this.ui.showNotification('🏰 Holdings', text, 'warning');
+            yield;
             // Stewards and governors run their seats by standing orders: embezzle, excel, abuse, take bribes, rise; the season's dispatch (systems/stewards.js)
             for (const n of Stewards.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // The trading company — factors' weekly trade, convoys, contracts, rival houses, ventures
             const companyDay = MerchantHouses.processDay(this.player, this.world);
             for (const n of companyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Patronage — clients' works, stipends, rival offers; Great Works and the
             // kingdoms' wonders (systems/patronage.js)
             const patronageDay = Patronage.processDay(this.world, this.player);
             for (const n of patronageDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // The heralds cry the great news of the day as it reaches you (systems/heralds.js)
             const heraldDay = Heralds.processDay(this.world, this.player);
             if (this.ui._heralds !== false) {
                 for (const n of heraldDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+            yield;
             // The court scribe writes the Annals: closed chapters and reigns once, the living
             // chapter yearly; the prose pen's queue starts the day's work (systems/annals.js,
             // systems/llmProse.js — the model off, nothing at all)
@@ -1021,66 +1127,84 @@ export function endDay() {
             }
             Annals.processDay(this.world, this.player);
 
+            yield;
             // Merchant caravans and trading ships on the roads: tolls, ambushes,
             // escorts, road wardens; cargo lands on arrival (systems/merchantCaravans.js)
             const caravanDay = MerchantCaravans.processDay(this.world, this.player);
             for (const n of caravanDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Fairs open and close, and the week's market news goes to the heralds (systems/marketFairs.js)
             const fairDay = MarketFairs.processDay(this.world, this.player);
             for (const n of fairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // The harvests: the growing season's weather, war and blights; the harvest is
             // reckoned at summer's end and sizes the towns' crops for the year (world/harvests.js)
             const harvestDay = Harvests.processDay(this.world, this.player);
             for (const n of harvestDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The grain dealers buy into a failing harvest and sell at the peak; crowns may forbid it (systems/engrossing.js)
             for (const n of Engrossing.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The AI crowns change their laws: gates shut against a plague near, opened once it has passed (systems/lawCouncil.js)
             LawCouncil.processDay(this.world, this.player);
+            yield;
             // Written codes (the jurists' work, the realms they steady), names on the map kept or taken back (systems/namedLegacy.js)
             for (const n of NamedLegacy.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // The hinterland: the rural sites around the towns dig and send their goods to
             // market on its day, deposits run down and veins are struck; mining leases
             // are paid, auctioned and revoked (world/hinterland.js, systems/concessions.js)
             const hinterlandDay = Concessions.processDay(this.world, this.player);
             for (const n of hinterlandDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The land: each town's month of rents, tenants and land values, estates changing
             // hands; the cottagers' putting-out work (systems/landMarket.js, systems/puttingOut.js)
             for (const sys of [LandMarket, PuttingOut]) {
                 for (const n of sys.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+            yield;
             // The crowns' trade policy: tariffs, export bans, embargoes, treaties,
             // trade wars and granaries, each realm on its weekly turn (systems/tradePolicy.js)
             const tradePolicyDay = TradePolicy.processDay(this.world, this.player);
             for (const n of tradePolicyDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The roads: wear, the realms' upkeep, washouts and snowbound passes; public works
             // (roads, bridges, canals, harbours) buying their stone and hiring hands (systems/publicWorks.js)
             const worksDay = PublicWorks.processDay(this.world, this.player);
             for (const n of worksDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Works of the Ages: cathedrals, universities, bridges, canals, walls rising over decades,
             // their funders paying in turn, ruins and grudges (systems/greatWorks.js; weekly)
             for (const n of GreatWorks.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)
-            MarketDynamics.updatePrices(this.world, this.player);
+            // (a few markets a step: MarketDynamics.updatePricesSteps)
+            if (typeof MarketDynamics.updatePricesSteps === 'function') yield* MarketDynamics.updatePricesSteps(this.world, this.player);
+            else MarketDynamics.updatePrices(this.world, this.player);
 
+            yield;
             // Labour: each town's classes, hands, wages and welfare on its market day;
             // weekly migration, refugees, strikes and booms (systems/labour.js)
             const labourDay = Labour.processDay(this.world, this.player);
             for (const n of labourDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Merchant Prince: the works' pay on market day, seizures; store-rooms'
             // spoilage, rent and thieves; forward contracts due (systems/merchantPrince.js)
             const princeDay = MerchantPrince.processDay(this.player, this.world);
             for (const n of princeDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Town guilds: each town's weekly turn (formation, dues, strikes, elections,
             // lobbying, feuds); the player's dues, guild loans and contracts (systems/guilds.js)
             const guildDay = Guilds.processDay(this.world, this.player);
             for (const n of guildDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The player's price book: the market they stand in, merchants met,
             // their factors' and stewards' reports (systems/priceKnowledge.js)
             PriceKnowledge.processDay(this.player, this.world, {
@@ -1088,18 +1212,21 @@ export function endDay() {
                 holdings: Holdings.list(this.player, this.world),
                 traders: MerchantCaravans.traders(this.world),
             });
+            yield;
             // Price news: the markets' news travelling town to town, rival lies, the
             // player's price letters and correspondents (systems/priceNews.js)
             for (const n of PriceNews.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The Economic Chronicle: the realms' weekly indices, the fashions at court,
             // the gazette where the player stands, their net worth (systems/economyChronicle.js)
             EconomyChronicle.processDay(this.world, this.player);
+            yield;
             // The game's victory goal (systems/victory.js): met once, celebrated, and play goes on
             {
                 const won = Victory.check(this.player, this.world);
                 if (won) {
                     this.ui.showNotification(`${won.icon} ${won.name}`, won.text, 'success');
-                    if (typeof document !== 'undefined') setTimeout(() => ActionMenu.showVictoryScene(this, won), 600);
+                    if (typeof document !== 'undefined') later(() => ActionMenu.showVictoryScene(this, won), 600);
                 }
             }
 
@@ -1119,6 +1246,7 @@ export function endDay() {
                 }
             }
 
+            yield;
             // Process espionage daily
             if (typeof Espionage !== 'undefined') {
                 const espResult = Espionage.processDaily(this.player, this.world);
@@ -1155,6 +1283,7 @@ export function endDay() {
                 Espionage.prepareForSave(this.player);
             }
 
+            yield;
             // Process gossip / rumors
             {
                 const gossipResult = Gossip.processDaily(this.player, this.world);
@@ -1169,11 +1298,13 @@ export function endDay() {
                 }
             }
 
+            yield;
             // The Crown's Purse — every realm's taxes, wages and books; tax farms,
             // tax revolts and its tax review weekly (systems/fiscal.js; before Finance,
             // which borrows, levies and debases on the books it closes)
             for (const n of Fiscal.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Banks, Credit & Coin — deposit interest, loan payments and what a
             // missed one brings, bond coupons, the crowns' debts and coin, panics
             // (systems/finance.js; runs the loans the old Banking.processLoans did)
@@ -1182,31 +1313,42 @@ export function endDay() {
                 this.ui.showNotification('Loan Payment', `-${Utils.formatGold(financeDay.paid)} gold`, 'default');
             }
             for (const n of financeDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Underwriters (premiums, claims on the day's losses, their books), bills of
             // exchange (stolen ones cashed, failed houses), the Bourse (prices, dividends, manias)
             for (const sys of [Underwriting, Bills, Bourse]) {
                 for (const n of sys.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+            yield;
             // Specie & mints: the realms' coin, its flows and price levels (weekly), recoinages,
             // the player's mint lease, the money changers at a border (systems/mints.js, world/moneySupply.js)
             for (const n of Mints.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The climate of centuries: little ice ages, warm periods, droughts, wet decades (world/climate.js)
             for (const n of Climate.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Age-defining crises: invasions, great plagues, schisms, famines, gold rushes (systems/crises.js)
             for (const n of Crises.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The last crisis of the age: the reckoning of a House grown too great (systems/lastCrisis.js)
             for (const n of LastCrisis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The sees of the faiths: holy wars called and fought, the cross, excommunication (systems/holyWars.js)
             for (const n of HolyWars.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The weight of greatness: great old realms rot from within (systems/realmDecline.js)
             for (const n of RealmDecline.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The commons rise: grievances, risings, rebel hosts burning estates (systems/peasantRevolts.js)
             for (const n of PeasantRevolts.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // Harrying the countryside: burnt towns rebuild, pursuit hosts ride after the player, realms at war harry each other (systems/harrying.js)
             for (const n of Harrying.processDay(this.world, this.player, (Throne.ruledKingdom(this.player, this.world) || {}).id).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            yield;
             // The Timeline of the Realm: borders each season, wars, crises, reigns, deeds with places (systems/realmTimeline.js)
             RealmTimeline.processDay(this.world, this.player);
 
+            yield;
             // Collect taxes (every 7 days)
             let taxCollected = 0;
             if (this.world.day % 7 === 0) {
@@ -1217,6 +1359,7 @@ export function endDay() {
                 }
             }
 
+            yield;
             // Resume queued multi-day travel if any (not while a band stands in the
             // way: the journey goes on once that is settled, ActionMenu._resumeHeldJourney)
             if (this.player.queuedPath && !this._pendingEncounter) {
@@ -1247,6 +1390,7 @@ export function endDay() {
             // The day's visibility pass re-fogs the map; standing cheats put it back
             if (this._cheats) this.ui.applyCheats(true);
 
+            yield;
             // Show reachable hexes for the new day (a time skip does it once, at its end)
             if (!skipping) {
                 this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
@@ -1257,6 +1401,7 @@ export function endDay() {
             // Distribution plans: the week's arrivals rolled up, robberies and returns at once (player/distribution.js)
             for (const n of ((playerResults.distribution && playerResults.distribution.notices) || []).slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Show player production notifications
             if (playerResults.production && Object.keys(playerResults.production).length > 0) {
                 let msg = 'Produced: ';
@@ -1278,6 +1423,7 @@ export function endDay() {
                 this.ui.showNotification('Faith Income', `+${Math.floor(playerResults.faithIncome)} gold from followers`, 'success');
             }
 
+            yield;
             // Chance for traveling merchants
             PlayerEconomy.spawnTravelingMerchant(this.player, this.world);
 
@@ -1510,6 +1656,7 @@ export function endDay() {
                 }
             }
 
+            yield;
             // Show day events
             if (result.events.length > 0) {
                 // Only news that touches the player pops up (an effect on them, their realm,
@@ -1536,6 +1683,7 @@ export function endDay() {
                 }
             }
 
+            yield;
             // Check for completed quests
             const completedQuests = Quests.updateProgress(this.player, this.world);
             for (const quest of completedQuests) {
@@ -1546,38 +1694,47 @@ export function endDay() {
                     House.recordPlayerDeed(this.player, this.world, 'quest', { reason: `quest: ${quest.title}` });
                 }
             }
+            yield;
             // Tasks: a thing found, a task failed (systems/quests.js)
             for (const n of Quests.takeNotices(this.player)) this.ui.showNotification(n.title, n.text, n.type);
 
+            yield;
             // Earned traits: habits fade, tax policy reads as greed or goodwill,
             // the dynasty echo fades (gain/loss notices are shown by updateStats)
             Traits.processDay(this.player, this.world);
 
+            yield;
             // The underworld: heat cools, hot goods cool, rackets and the Guildmaster's cut pay weekly
             {
                 const uw = Underworld.processDay(this.player, this.world);
                 for (const text of uw.notices) this.ui.showNotification('🗝️ Underworld', text, 'info');
             }
 
+            yield;
             // First Steps — the guided first month: steps the day completed (a night at an inn, the day itself) (systems/firstSteps.js)
             for (const n of FirstSteps.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            yield;
             // Check for new achievements
             const newAchievements = Achievements.checkAchievements(this.player, this.world);
             for (const achievement of newAchievements) {
                 this.ui.showNotification('Achievement Unlocked!', `${achievement.icon} ${achievement.name}: ${achievement.description}`, 'success');
             }
 
+            yield;
             // Auto-save every N days (0 = disabled); an Ironman run every day, quietly
             // (SaveLoad.shouldAutoSave; the run record: systems/metaLegacy.js, ui/game/ironman.js)
             MetaLegacy.ensureRun(this.world);
             settleIronmanDeath(this);
+            yield;
             // (a time skip saves once, when it ends: TimeSkip.run)
             if (skipping && SaveLoad.shouldAutoSave(this)) {
                 this._timeSkip.saveDue = true;
             } else if (SaveLoad.shouldAutoSave(this)) {
-                // (written in the background: core/saveStore.js; a full store is said aloud)
-                SaveLoad.saveGame(this).then((result) => {
+                // (the state read and written out a step at a time with the rest of the day,
+                // SaveLoad.saveGameSteps; stored in the background: core/saveStore.js; a full store is said aloud)
+                const saving = typeof SaveLoad.saveGameSteps === 'function' ? yield* SaveLoad.saveGameSteps(this) : SaveLoad.saveGame(this);
+                saving.then((result) => {
                     if (result.success && !SaveLoad.isIronman(this)) this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
                     else if (!result.success && !result.superseded) this.ui.showNotification('⚠️ Not saved', result.error, 'error');
                 });
@@ -1625,6 +1782,7 @@ export function endDay() {
             if (guildDay.expenses > 0) dayFinance.expenses.guildDues = guildDay.expenses;
             if (typeof Tavern !== 'undefined' && intelResult && intelResult.cost > 0) dayFinance.expenses.informants = intelResult.cost;
 
+            yield;
             // Property upkeep (calculated from properties)
             let propertyUpkeep = 0;
             if (this.player.properties) {
@@ -1638,15 +1796,17 @@ export function endDay() {
             }
             if (propertyUpkeep > 0) dayFinance.expenses.propertyUpkeep = propertyUpkeep;
 
+            yield;
             // Close the day's books: every flow the systems recorded today joins the
             // row, the totals are set and the last 120 days kept (systems/ledger.js)
             Ledger.closeDay(this.player, this.world, dayFinance);
+            yield;
             // The Season's Reckoning: at a season's turn, what the player's doings changed
             // (systems/reckoning.js; shown unless switched off in Settings — always in the Journal)
             const reckoning = Reckoning.processDay(this.world, this.player);
             if (reckoning.report && this.ui._seasonReckoning !== false) {
                 if (this._voyageDay) this.ui.showNotification('⏳ The Season’s Reckoning',`${reckoning.report.headline}. Read it in Journal → Season's Reckoning.`, 'info');
-                else setTimeout(() => ActionMenu.showReckoning(this, 'last'), 0);
+                else later(() => ActionMenu.showReckoning(this, 'last'));
             }
 
             // The day's clock for the new day (one clock, on the map or off it: ui/game/dayClock.js):
@@ -1680,6 +1840,7 @@ export function endDay() {
             const prevSeason = this._bannerSeason, prevYear = this._bannerYear;
             this._bannerSeason = this.world.season;
             this._bannerYear = this.world.year;
+            yield;
             // (a time skip: no banner, brief or badge each day — ui/actionMenu/timeSkip.js
             // shows the brief and the badge once the wait is over)
             if (!skipping) showDayBanner({
@@ -1689,6 +1850,7 @@ export function endDay() {
                 kind: prevYear != null && prevYear !== this.world.year ? 'year'
                     : prevSeason != null && prevSeason !== this.world.season ? 'season' : 'day',
             });
+            yield;
             // The Steward's morning brief: the top three matters (setting: morningBrief)
             if (!skipping) {
                 showMorningBrief(this);
@@ -1697,16 +1859,17 @@ export function endDay() {
             // Waking in the town of a map-owner you robbed: he finds you at breakfast, not only on arrival (systems/mapTheft.js)
             if (!this._voyageDay) checkMapAccusation(this);
 
+            yield;
             // At sea: show the voyage log, then sail on or wait for orders (ui/actionMenu/voyage.js)
             if (this._voyageDay) {
                 const voyageDay = this._voyageDay;
                 this._voyageDay = null;
-                setTimeout(() => onVoyageDay(this, voyageDay), 0);
+                later(() => onVoyageDay(this, voyageDay));
             } else if (this._interceptHeld && !skipping) {
                 // Aboard, off a voyage: a patrol has brought her to (systems/seaInterception.js)
                 this._interceptHeld = false;
                 const st = SeaInterception.start(this.player, this.world);
-                if (st) setTimeout(() => ActionMenu.showScene(this, 'intercept', st), 0);
+                if (st) later(() => ActionMenu.showScene(this, 'intercept', st));
             }
         } catch (e) {
             console.error("Error ending day:", e);
@@ -1720,11 +1883,25 @@ export function endDay() {
             if (this.player && this.player.autoChart && !this.player.isMoving) setTimeout(() => this._autoChartStep(), 0);
         }
     };
-    // (a time skip runs the turn at once: TimeSkip's _realDay waits on nothing)
+    const steps = turnSteps.call(this);
+    const runTurn = (done) => {
+        const settle = () => {
+            for (const [fn, ms] of deferred.splice(0)) setTimeout(fn, ms);
+            if (done) done();
+        };
+        if (!sliced) {
+            try { DayTurn.runSync(steps); } finally { settle(); }
+            return;
+        }
+        // (letting days pass, ui/timeSkip.js: a larger slice, and the wait's own bar stays above the shield)
+        DayTurn.runSliced(this, steps, { budgetMs: skipping ? DayTurn.SKIP_BUDGET_MS : DayTurn.BUDGET_MS, mode: skipping ? 'skip' : 'full', onDone: settle });
+    };
+    // (a time skip starts the turn at once: TimeSkip's _realDay waits for isProcessingTurn to clear)
     if (skipping) runTurn();
     // On the street map the night passes in the dark: fade out, the day turns, fade back in (ui/dayFade.js)
-    else if (fading) fadeOut(() => { try { runTurn(); } finally { fadeIn(); } });
-    else setTimeout(runTurn, 50);
+    else if (fading) fadeOut(() => runTurn(() => fadeIn()));
+    // (run at once, a moment after the click so the wait cursor shows; across frames, from the next one)
+    else setTimeout(() => runTurn(), sliced ? 0 : 50);
 }
 
 /**

@@ -314,7 +314,7 @@ Object.assign(InnerMapRenderer, {
                     // (a burnt-out or sacked shell has no hearth smoke, no lamp in its windows: world/townMarks.js)
                     if (tile.customBuilding.ruin === 'burnt' || tile.customBuilding.ruin === 'sacked') continue;
                     // (nor does a building still going up on its lot: no fire lit in a hearth not yet built)
-                    if (tile._propertyRef && tile._propertyRef.underConstruction) continue;
+                    if ((tile._propertyRef && tile._propertyRef.underConstruction) || tile.customBuilding.siteP != null) continue;
                     const def = CustomBuildings.getBuilding(tile.customBuilding.defId);
                     if (!def) continue;
                     const list = this._ambBuildingEmitters(cfg, def, null);

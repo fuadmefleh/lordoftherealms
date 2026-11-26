@@ -236,19 +236,58 @@ export class Minimap {
         this._innerLastDraw = 0;
 
         if (!this.needsRedraw && !this.game.player.isMoving) return;
+        // The map itself (terrain, realms, fog, towns) is drawn into a canvas of its own when
+        // something asks for a redraw (a step taken, a day ended: invalidate); the frames between,
+        // while the player walks, copy it and draw the marker and the view's frame over it
+        // (it used to be drawn tile by tile every frame of a journey)
+        const rebuild = this.needsRedraw || !this._base || this._base.key !== this._backing;
         this.needsRedraw = false;
 
         const ctx = this.ctx;
         const world = this.game.world;
+        if (!world) {
+            ctx.fillStyle = '#090d14';
+            ctx.fillRect(0, 0, this.w, this.h);
+            return;
+        }
+        const view = this._worldView(world);
+        if (rebuild) this._drawBase(world, view);
+        if (this._base) {
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.drawImage(this._base.c, 0, 0);
+            ctx.restore();
+        }
+        this._drawOverlay(ctx, world, view);
+    }
+
+    /** The map's still layer into the base canvas (Minimap.render copies it each frame). */
+    _drawBase(world, view) {
+        const pw = this.canvas.width, ph = this.canvas.height;
+        let base = this._base;
+        if (!base || base.c.width !== pw || base.c.height !== ph) {
+            const c = document.createElement('canvas');
+            c.width = pw;
+            c.height = ph;
+            const g = c.getContext('2d');
+            if (!g) { this._base = null; this._drawLayer(this.ctx, world, view); return; }
+            base = this._base = { c, g, key: null };
+        }
+        base.key = this._backing;
+        const g = base.g;
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.clearRect(0, 0, pw, ph);
+        g.setTransform(pw / this.w, 0, 0, ph / this.h, 0, 0);
+        this._drawLayer(g, world, view);
+    }
+
+    /** Terrain, realms, fog and towns (and the towns' hover labels). */
+    _drawLayer(ctx, world, view) {
         const w = this.w;
         const h = this.h;
-
         ctx.fillStyle = '#090d14';
         ctx.fillRect(0, 0, w, h);
 
-        if (!world) return;
-
-        const view = this._worldView(world);
         const { tileW, tileH, ox, oy } = view;
         const cell = (q, r) => [
             Math.floor(ox + q * tileW),
@@ -259,6 +298,9 @@ export class Minimap {
 
         // Draw terrain (unexplored tiles stay the background colour)
         const renderer = this.game.renderer;
+        const showRealms = this.shows('realms');
+        const realmColor = new Map();
+        for (const k of world.kingdoms || []) if (k && !realmColor.has(k.id)) realmColor.set(k.id, k.color);
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
@@ -269,11 +311,11 @@ export class Minimap {
                 // If renderer has an active map mode, use its colour scheme
                 if (renderer && renderer.mapMode !== 'normal') {
                     color = renderer.getMapModeColor(tile);
-                } else if (tile.kingdom && this.shows('realms')) {
+                } else if (tile.kingdom && showRealms) {
                     // Default: override with kingdom color for territory
-                    const kingdom = world.getKingdom(tile.kingdom);
-                    if (kingdom) {
-                        color = kingdom.color;
+                    const kc = realmColor.get(tile.kingdom);
+                    if (kc !== undefined) {
+                        color = kc;
                     }
                 }
 
@@ -307,7 +349,11 @@ export class Minimap {
             }
         }
         this._markers = markers;
+    }
 
+    /** The player's marker and the camera's frame, over the map. */
+    _drawOverlay(ctx, world, view) {
+        const { tileW, tileH, ox, oy } = view;
         // Draw player position
         const player = this.game.player;
         const px = ox + (player.q + 0.5) * tileW;

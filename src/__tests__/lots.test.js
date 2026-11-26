@@ -120,6 +120,26 @@ describe('Building lots', () => {
         }
     });
 
+    it('a tenement raised on your lot stands on the street map as a tall house of rooms (row houses where it cannot)', () => {
+        const { world, settlement, game } = enter('city');
+        game.player.gold = 1e6;
+        const lots = InnerMap.townLots();
+        expect(lots.length).toBeGreaterThan(0);
+        for (const lot of lots) {
+            expect(Lots.buyLot(game.player, world, settlement, lot).success).toBe(true);
+            expect(Lots.buildTenementOnLot(game.player, world, settlement, lot.id, 'tenement').success).toBe(true);
+            LotBook.lot(settlement, lot.id).built.readyDay = world.day;
+        }
+        InnerMap._cache = {};
+        InnerMap.enter(game, 5, 6);
+        const stood = [];
+        for (const row of InnerMap.tiles) for (const t of row) if (t && t.customBuilding && t.customBuilding.lotId) stood.push(t.customBuilding.defId);
+        expect(stood.length).toBe(lots.length);
+        // (the kit's own designs, never a culture's hut: a tenement, row houses or a plain town house)
+        for (const id of stood) expect(id).not.toMatch(/hovel|~/);
+        expect(stood.some(id => /^(tenement|terrace)/.test(id))).toBe(true);
+    });
+
     it('a rival House of the realm pays for its lot out of its purse', () => {
         const { world, settlement } = enter('capital');
         const player = { gold: 0, house: { rivals: { k1: { kingdomId: 'k1', name: 'House Varn', gold: 100000 } } } };

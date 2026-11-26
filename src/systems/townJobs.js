@@ -59,6 +59,8 @@ import { TownSchool } from './townSchool.js';
 // (what they remember of the player's House: systems/npcMemory.js)
 import { NpcMemory } from './npcMemory.js';
 import { MaimMarks } from './maimMarks.js';
+// (the dole for those who can't pay their board: systems/townPoor.js; run time only)
+import { TownPoor } from './townPoor.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -509,6 +511,56 @@ export const TownJobs = {
         }
         TownJobs._hardTimes(world, settlement, folk, day, note);
         TownJobs.payday(world, settlement, folk, day, Townsfolk.config().tickDays);
+        TownJobs._hungerSeason(world, settlement, folk, day, news, note);
+    },
+
+    /**
+     * The hungry jobless after payday (data/townPoor.json named): one takes day
+     * labour where the town hires (its idle haul and build: systems/townPoor.js),
+     * one leaves for another town, and one starving starveSeasons seasons in a
+     * dearth or a hungry town may die of it. Hash rolls only. → { labour, left, died }
+     */
+    _hungerSeason(world, settlement, folk, day, news = [], note = null) {
+        const out = { labour: 0, left: 0, died: 0 };
+        if (!TownPoor.on() || !folk) return out;
+        const N = TownPoor.config().named || {};
+        const seed = _seedOf(world);
+        const pr = settlement.poor;
+        const hires = !!(pr && pr.by && _num(pr.by.dayLabour) > 0);
+        let dearth = false;
+        try { dearth = SettlementMarket.inDearth(settlement); } catch (e) { dearth = false; }
+        const hungryTown = dearth || TownPoor.hunger(settlement) > 0.03;
+        const towns = (typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : []).filter(v => v && v.name && v.name !== settlement.name).map(v => v.name);
+        for (const p of Townsfolk.residents(folk)) {
+            if (!p.starve || !TownJobs._adult(p, day)) continue;
+            const j = p.job;
+            if (!j || j.employer === 'player') continue;
+            const jobless = ['unemployed', 'beggar', 'labourer'].includes(j.id);
+            const roll = (salt) => _roll(seed, folk.q, folk.r, p.id, day, salt);
+            if (jobless && j.id !== 'labourer' && hires && roll('dayLabour') < _num(N.labourChance, 0.35)) {
+                p.job = { id: 'labourer', rank: 'master', since: day };
+                Townsfolk._log(p, day, 'job', null, `dayLabour|${j.id}`);
+                if (note) note('dayLabour', p, null, j.id);
+                out.labour++;
+                continue;
+            }
+            if (p.starve >= _num(N.starveSeasons, 2) && hungryTown && roll('starve') < _num(N.dieChance, 0.18)) {
+                Townsfolk._die(folk, p, day, 'hunger and want', world);
+                Townsfolk._annal(folk, world, day, { k: 'died', a: p.id, b: null, x: 'hunger and want' }, news);
+                out.died++;
+                continue;
+            }
+            const single = !(p.spouse != null && Townsfolk.isHere(Townsfolk.get(folk, p.spouse)));
+            if (jobless && single && p.role !== 'noble' && roll('leave') < _num(N.leaveChance, 0.12)) {
+                const to = towns.length ? towns[Math.floor(roll('to') * towns.length)] : 'the wider world';
+                Townsfolk.leavePurse(folk, p, world, day, { toTown: true });
+                p.away = { d: day, to };
+                Townsfolk._log(p, day, 'left', null, to);
+                Townsfolk._annal(folk, world, day, { k: 'left', a: p.id, b: null, x: to }, news);
+                out.left++;
+            }
+        }
+        return out;
     },
 
     /**
@@ -597,6 +649,8 @@ export const TownJobs = {
         }
         // Board: bread and the rest, back to the town (a child's paid by its parents)
         const dearth = (() => { try { return SettlementMarket.inDearth(settlement); } catch (e) { return false; } })();
+        const poorOn = TownPoor.on();
+        const PN = (TownPoor.config().named || {});
         for (const p of people) {
             const age = Townsfolk.age(p, day);
             if (age < C.adultAge) continue;
@@ -607,12 +661,27 @@ export const TownJobs = {
             if (p.shopped) { want = Math.max(0, want - p.shopped); delete p.shopped; }   // (what they already paid the stalls this season: systems/townTrade.js)
             const paid = take(p, want);
             Economy.payTown(settlement, paid);
+            // What they could not pay: the dole — the almshouse's box, the church's alms — buys
+            // their bread (real coin, spent at the bakers' straight away: systems/townPoor.js)
+            let short = _r2(Math.max(0, want - paid));
+            if (short > 0.01 && poorOn) {
+                const dole = TownPoor.namedRelief(world, settlement, short);
+                if (dole > 0) { Economy.payTown(settlement, dole); short = _r2(short - dole); p.dole = day; }
+            }
             // (the well-off spend what's over on fine things: meat, wine, cloth)
             const over = purse(p) - _num(L.richAbove, 45);
             if (over > 0) Economy.payTown(settlement, take(p, over * _num(L.richSpend, 0.35)));
-            if (dearth && purse(p) < _num(L.hungryBelow, 4)) p.hungry = day;
-            else if (p.hungry != null && day - p.hungry >= Townsfolk.config().tickDays) delete p.hungry;
-            p.diet = purse(p) < _num(L.poorBelow) ? 'poor' : purse(p) > _num(L.richAbove) ? 'rich' : 'plain';
+            // Hungry: in a dearth with next to nothing; or — the poor's dole on — short of more than
+            // hungryShort of their board with no one to make it up. Seasons in a row: starving
+            const hungry = (dearth && purse(p) < _num(L.hungryBelow, 4)) || (poorOn && want > 0.5 && short > want * _num(PN.hungryShort, 0.4));
+            if (hungry) {
+                p.hungry = day;
+                p.starve = _num(p.starve) + 1;
+            } else {
+                if (p.hungry != null && day - p.hungry >= Townsfolk.config().tickDays) delete p.hungry;
+                if (p.starve) delete p.starve;
+            }
+            p.diet = p.starve ? 'starving' : purse(p) < _num(L.poorBelow) ? 'poor' : purse(p) > _num(L.richAbove) ? 'rich' : 'plain';
         }
     },
 
@@ -832,7 +901,8 @@ export const TownJobs = {
             const id = p.job.employer === 'player' ? '_player' : p.job.id;
             const row = rows[id] || (rows[id] = { id, workers: [] });
             const hurt = Townsfolk.injury(p, d);
-            const state = p.job.hired && _num(p.job.hired.until) > d ? 'at your order'
+            // (hired by the newcomers' camp for their houses: systems/arrivalCamps.js)
+            const state = p.job.hired && _num(p.job.hired.until) > d ? (p.job.hired.label === 'building for the newcomers' ? 'building for the newcomers' : 'at your order')
                 : (p.jailedUntil != null && d < p.jailedUntil) ? 'in the cells'
                     : hurt ? 'hurt' : (p.hungry != null && d - p.hungry < 30) ? 'hungry' : TownJobs.brawlFactor(p, d) < 1 ? 'sore from a fight' : null;
             row.workers.push({ person: p, name: Townsfolk.name(p), title: TownJobs.title(p), rank: p.job.rank, years: Math.floor((d - _num(p.job.since, d)) / Townsfolk.config().daysPerYear), state, weight: _r2(TownJobs.weight(folk, p, d)) });
@@ -874,6 +944,7 @@ export const TownJobs = {
             case 'tookUp': return o ? `I took up the ${o.name}'s trade ${when}.` : null;
             case 'widow': return o ? `When ${boss ? boss.first : 'my love'} died I kept the ${o.name}'s shop going. What else could I do?` : null;
             case 'jobless': return `I lost my work ${when}.`;
+            case 'dayLabour': return `I was out of work and hungry ${when}; I took what day labour I could get.`;
             default: return null;
         }
     },
@@ -890,6 +961,7 @@ export const TownJobs = {
             case 'tookUp': return o ? `Took up the trade of ${o.name} ${when}.` : null;
             case 'widow': return o ? `Kept on the late spouse's ${o.name} shop ${when}.` : null;
             case 'jobless': return `Lost work ${when}.`;
+            case 'dayLabour': return `Hungry and out of work, took day labour ${when}.`;
             case 'hiredPlayer': return `Took service with you ${when} (${x}).`;
             case 'leftPlayer': return `Left your service ${when}${x === 'unpaid' ? ', unpaid' : ''}.`;
             default: return null;

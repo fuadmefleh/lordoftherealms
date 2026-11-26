@@ -8,6 +8,7 @@ import { PitRing } from '../pitRing.js';
 import { TownEras } from '../townEras.js';
 import { TownWalls } from '../townWalls.js';
 import { StreetCover } from '../streetCover.js';
+import { TownGrowth } from '../townGrowth.js';
 import { pickNineTileSlot, resolveBrushSeason, resolveNineTileCell, erodeUntileableStubs } from '../../core/nineTile.js';
 
 // What the bare fill under the grass layer reads as, by base terrain (groundName)
@@ -395,7 +396,7 @@ Object.assign(InnerMap, {
         // an open hex where a battle has since been fought)
         const wday = game && game.world && Number.isFinite(game.world.day) ? game.world.day : 0;
         // (and the scaffold of a proclaimed execution, up or down: world/scaffolds.js; the dead on show: world/deadDisplays.js; the town's pit, in the open or gone underground: world/pitRing.js)
-        const memStamp = st ? TownMarks.stamp(st, wday) + Scaffolds.stamp(st, wday) + DeadDisplays.stamp(st, wday) + PitRing.stamp(st) : (game && game.world ? TownMarks.fieldMarks(game.world, worldQ, worldR).map(m => m.id).join(',') : '');
+        const memStamp = st ? TownMarks.stamp(st, wday) + Scaffolds.stamp(st, wday) + DeadDisplays.stamp(st, wday) + PitRing.stamp(st) + TownGrowth.stamp(st) : (game && game.world ? TownMarks.fieldMarks(game.world, worldQ, worldR).map(m => m.id).join(',') : '');
         // (and a town whose age has moved on — its era, its walls, its houses weathered and rebuilt by the decade: world/townEras.js)
         const ageStamp = st && game && game.world ? TownEras.stamp(game.world, st) : '';
         const settledAs = st ? `${st.name || 'settlement'}|${st.type || 'village'}|${this._isDawnVillage && this._isDawnVillage(st) ? 'camp' : 'town'}${st.type === 'capital' && st.castle === false ? '|hall' : ''}${era}${memStamp}${ageStamp}` : (memStamp ? `field|${memStamp}` : null);
@@ -450,7 +451,7 @@ Object.assign(InnerMap, {
      * combined with per-cell fbm noise so the inner map is coherent with
      * its parent tile.
      */
-    generate(worldTile, worldQ, worldR, game) {
+    generate(worldTile, worldQ, worldR, game, opts = null) {
         // All inner maps are a fixed size
         this.width = this.INNER_MAP_SIZE;
         this.height = this.INNER_MAP_SIZE;
@@ -526,8 +527,11 @@ Object.assign(InnerMap, {
                 // Incorporate effective temperature so cold/hot regions shift selection.
                 // Map blendElev into an index range across the sorted primary list
                 // so wetter / higher cells naturally pick different sub-terrains.
-                const tempBias = (1 - effectiveTemp) * 0.15; // colder → slightly higher bias
-                const noiseBias = (blendElev * 0.45 + adjustedMoist * 0.40 + tempBias) % 1.0; // 0-1
+                // (from the hex's own climate, never the day's weather or season: the same ground
+                // comes back on every visit; the day's temperature and moisture are kept on the
+                // cells below, refreshed by the weather, as an overlay)
+                const tempBias = (1 - parentTemp) * 0.15; // colder → slightly higher bias
+                const noiseBias = (blendElev * 0.45 + blendMoist * 0.40 + tempBias) % 1.0; // 0-1
 
                 // Weighted selection modulated by noise
                 let roll = rng() * totalWeight;
@@ -582,6 +586,8 @@ Object.assign(InnerMap, {
 
         // The town's mill, moved to the water's edge once the water is laid (worlds since terrainGen 5)
         let millOpts = null;
+        // The town's history and growth, laid over its plan once the water is down (below)
+        let townOverlay = null;
 
         // --- Settlement building placement ---
         // Must run BEFORE the grass layer so road tiles are excluded from
@@ -613,10 +619,9 @@ Object.assign(InnerMap, {
                         // since terrainGen 8 its age: the era it stands in, its houses weathered or rebuilt, its paving and walls (world/townEras.js)
                         era: eraLook }
                 );
-                // What the town's history has left on its streets: burnt and rebuilt houses, ruins,
-                // statues, cairns, new quarters (world/townMarks.js; hash-placed, draws nothing from rng)
-                TownMarks.lay(tiles, worldTile.settlement, world && Number.isFinite(world.day) ? world.day : 0,
-                    { plaza: genResult.plaza, center: genResult.center, culture: arch ? arch.culture : null });
+                // (what its history has left on its streets, and the streets laid out since for newcomers,
+                // go down after the water, below: they change with the years, and the water must not)
+                townOverlay = { plaza: genResult.plaza, center: genResult.center, culture: arch ? arch.culture : null };
                 // (a house put up on a lot later is built of the culture's stuff, in the tier of its day: lots.js)
                 // (and no grander than its era's builders raise: world/townEras.js)
                 if (arch) tiles._townBuild = { culture: arch.culture, eraCap: eraLook ? TownEras.tierCap(eraLook.eraIdx) : null };
@@ -684,6 +689,31 @@ Object.assign(InnerMap, {
         if (this._dressWater) this._dressWater(tiles, worldQ, worldR);
         // (a town's walls joined anew where the water broke them, a tower at each end: world/townWalls.js)
         if (tiles._townWalls) TownWalls.finish(tiles);
+
+        // --- The town as the years have left it, laid over its plan after the water: the hex's
+        // water depends only on the hex, its world river and the town's plan, never on what has
+        // happened since (a new street or quarter laid before the water once moved the river) ---
+        if (townOverlay && worldTile.settlement) {
+            const wday = world && Number.isFinite(world.day) ? world.day : 0;
+            // The streets laid out since for newcomers, in the order they were laid, their lots along
+            // them or inside the town, kept off the water (world/townGrowth.js; hash-placed, draws
+            // nothing from rng; first, so the lots it was surveyed for are always there to lay)
+            // (its lots join tiles._lots, the layout's list)
+            const lay = tiles._settlementLayout || {};
+            const grown = TownGrowth.layStreets(tiles, worldTile.settlement, { center: townOverlay.center, roadTiles: lay.roadTiles });
+            // (a survey of the town's room for a new street wants no more than that: InnerMap.surveyGrowth)
+            if (opts && opts.survey) { tiles._growthLaid = grown; return tiles; }
+            // (a street the town laid out before its map could be surveyed: fitted to it now)
+            if (CustomBuildings.isLoaded() && CustomObjects.isLoaded()) TownGrowth.settleUnsurveyed(worldTile.settlement, grown);
+            // What the town's history has left on its streets: burnt and rebuilt houses, ruins,
+            // statues, cairns, new quarters (world/townMarks.js; hash-placed, draws nothing from rng)
+            TownMarks.lay(tiles, worldTile.settlement, wday, townOverlay);
+            // (the grass drawn back off the new lanes)
+            if (grown.length || TownMarks.marks(worldTile.settlement).length) this._refreshGrassLayer(tiles);
+        } else if (opts && opts.survey) {
+            tiles._growthLaid = [];
+            return tiles;
+        }
 
         // --- A roadhouse on an open road (systems/hospitality.js; hash-placed: draws nothing from rng) ---
         this._placeRoadhouse(tiles, worldTile, worldQ, worldR, game && game.world);

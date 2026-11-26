@@ -53,6 +53,8 @@ const _key = (q, r) => `${q},${r}`;
 const PROFILE_DAYS = 20;
 /** Days the trade links hold before they are drawn again (towns founded meanwhile join then). */
 const LINK_DAYS = 30;
+/** Markets worked per step of updatePricesSteps (the day turn run across frames). */
+const MARKETS_PER_STEP = 8;
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 /** Per-world caches rebuilt from world state (land around towns, trade links). */
@@ -88,6 +90,18 @@ export const MarketDynamics = {
      * player-side disruptions (lairs, sieges). @returns {{ moved, value, gold }}
      */
     updatePrices(world, player = null) {
+        const steps = this.updatePricesSteps(world, player);
+        let r = steps.next();
+        while (!r.done) r = steps.next();
+        return r.value;
+    },
+
+    /**
+     * updatePrices as a generator of steps (a `yield` every few markets and between the
+     * trade's stages), for the browser's day turn run across frames (ui/game/dayTurn.js);
+     * updatePrices drives it to the end at once. The same work in the same order.
+     */
+    *updatePricesSteps(world, player = null) {
         if (!world || typeof world.getTile !== 'function') return null;
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
         const cache = this._cache(world);
@@ -104,6 +118,7 @@ export const MarketDynamics = {
         const lives = [];
         // Works stand idle in a town under siege
         const besieged = this._besieged(player);
+        let worked = 0;
         for (const s of views) {
             const tile = world.getTile(s.q, s.r);
             const live = tile && tile.settlement;
@@ -148,10 +163,13 @@ export const MarketDynamics = {
                 // (its named producers' wares kept back: systems/townTrade.js; null without a roster)
                 withhold: TownTrade.withhold(live, world, day, span || (Number.isFinite(day) ? k : 1)),
             });
+            if (++worked % MARKETS_PER_STEP === 0) yield;
         }
+        yield;
         // Each good's anchor learns, month by month, what it trades for across the world, and
         // every market is bound to the anchors and the craftsmen's floor (world/priceAnchors.js)
         PriceAnchors.update(world, lives, day);
+        yield;
         const links = this._links(world, cache, lives, day);
         for (const live of lives) if (live.market && live.market.trade) live.market.trade.cut = 0;
         const turnArg = !span && k > 1 && Number.isFinite(day) ? turn : null;
@@ -164,10 +182,12 @@ export const MarketDynamics = {
         this._quarantine(world, links, day);
         // A frozen harbour in the cold north ships little till the thaw (world/climate.js)
         this._ice(world, links, day);
+        yield;
         const bases = this._basePrices();
         // (goods for goods where a town barters: a world begun before coin, world/barter.js)
         const fo = Barter.flowOpts(world);
         const flow = SettlementMarket.flows(links, bases, day, span ? { ...(fo || {}), span } : fo);
+        yield;
         // The river links' trade on the water as barges (systems/barges.js: what moved, drawn on the world map)
         Barges.afterFlows(world, links, day);
         // The duties the day's trade paid go to the crowns (systems/tradePolicy.js)
@@ -176,6 +196,7 @@ export const MarketDynamics = {
         flow.tolls = PublicWorks.afterFlows(world, links, player, day);
         // ...and what crossed a border, for the coin the realms settle in (world/moneySupply.js)
         MoneySupply.collectTrade(world, links);
+        yield;
         MerchantCaravans.dispatch(world, links, bases, day, player, lives.length);
         // Independent towns have no realm treasury pass to bank their trade (KingdomAI.updateEconomy)
         for (const live of lives) if (!live.kingdom) Economy.processTrade(live);

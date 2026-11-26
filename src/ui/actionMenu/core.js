@@ -85,7 +85,7 @@ const AMX_GROUP_MIN = 8;
 const AMX_GROUPS = {
     hearth: [
         { id: 'rest', icon: '🛏️', label: 'Rest & Body', types: ['rest', 'pass_time', 'eat_meal', 'water', 'seek_physician', 'craft_campfire', 'meditate', 'bathe', 'wash_clothes'] },
-        { id: 'gather', icon: '🧺', label: 'Gather & Hunt', types: ['forage', 'hunt', 'fish', 'trap_furs', 'ice_fish', 'clear_trees', 'prospect', 'tame_horse', 'dig_treasure'] },
+        { id: 'gather', icon: '🧺', label: 'Gather & Hunt', types: ['forage', 'hunt', 'fish', 'trap_furs', 'ice_fish', 'clear_trees', 'prospect', 'tame_horse', 'dig_treasure', 'ground_goods'] },
         { id: 'explore', icon: '🔭', label: 'Explore', types: ['explore_poi', 'delve', 'delve_resume', 'explore_inner_map', 'explore_ocean'] },
         { id: 'sea', icon: '⛵', label: 'Ship & Shore', types: ['disembark', 'row_ashore', 'row_to_ship', 'make_for_port', 'river_life'] },
         { id: 'clan', icon: '🔥', label: 'The Clan', types: ['dawn_settle', 'dawn_instep'] },
@@ -276,7 +276,7 @@ Object.assign(ActionMenu, {
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general', bathe: 'general', wash_clothes: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', town_school: 'social', hearsay: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'general', commissions: 'commerce',
-            disembark: 'general', river_life: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
+            disembark: 'general', river_life: 'general', ground_goods: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', beg: 'social', gambling: 'commerce', fight_pit: 'social',
@@ -781,7 +781,7 @@ Object.assign(ActionMenu, {
         jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0, jail_trial: 0,
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
-        manage_fleet: 0, trade_lines: 0, river_life: 0, harbour: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
+        manage_fleet: 0, trade_lines: 0, river_life: 0, ground_goods: 0, harbour: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
         hold_court: 0, manage_holding: 0, patronage: 0, bank: 0, found_bank: 0,
         seek_physician: 0, // treatment costs gold, not time
         underworld: 0, // jobs inside the panel cost their own AP
@@ -1414,6 +1414,14 @@ Object.assign(ActionMenu, {
             case 'meditate':
                 ActionMenu.doMeditate(game, tile);
                 break;
+            case 'saw_planks': {
+                // The crafting window, with the recipes that need no bench (data/crafting.json `field: true`)
+                Promise.all([import('../objectActions/logic.js'), import('../../player/crafting.js')]).then(([{ _showRecipeModal }, { Crafting }]) => {
+                    const field = Crafting.recipes('craft').filter(r => r.field);
+                    _showRecipeModal(game, { name: 'Trestles' }, 'Saw Planks', '🌲', field);
+                });
+                break;
+            }
             case 'languages':
                 ActionMenu.showLanguages(game);
                 break;
@@ -1516,6 +1524,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'river_life':
                 ActionMenu.showRiverLife(game);
+                break;
+            case 'ground_goods':
+                game.ui.showGroundGoods(tile.q, tile.r);
                 break;
             case 'harbour':
                 ActionMenu.showHarbour(game);

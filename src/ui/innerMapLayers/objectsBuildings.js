@@ -226,7 +226,7 @@ Object.assign(InnerMapRenderer, {
             if (dy + ds * 4 < 0 || dy > ctx.canvas.height + ds * 4) continue;
 
             if (b.type === 'custom') {
-                this._drawCustomBuilding(ctx, camera, b.def, b.q, b.r, ds, b.tile.customBuilding && b.tile.customBuilding.ruin, this._siteProgress(b.tile._propertyRef), (b.tile.customBuilding && b.tile.customBuilding.wear) || 0, (b.tile.customBuilding && b.tile.customBuilding.spire) || null);
+                this._drawCustomBuilding(ctx, camera, b.def, b.q, b.r, ds, b.tile.customBuilding && b.tile.customBuilding.ruin, this._siteProgress(b.tile._propertyRef, b.tile.customBuilding), (b.tile.customBuilding && b.tile.customBuilding.wear) || 0, (b.tile.customBuilding && b.tile.customBuilding.spire) || null);
                 if (b.tile._propertyRef && b.tile.buildingInfo && camera.zoom > 0.4) {
                     const at = this._propertyLabelAt(b.def, b.tile, b.q, b.r);
                     this._drawBuildingLabel(ctx, camera, b.tile.buildingInfo, at.q, at.r);
@@ -601,8 +601,9 @@ Object.assign(InnerMapRenderer, {
     },
 
     /** How far a property's building has come (0..1), or null when it stands finished (or is none). */
-    _siteProgress(rec) {
-        if (!rec || !rec.underConstruction) return null;
+    _siteProgress(rec, cb = null) {
+        // (a newcomer's house going up on its lot: world/innerMap/lots.js sets its progress)
+        if (!(rec && rec.underConstruction)) return cb && typeof cb.siteP === 'number' ? cb.siteP : null;
         return Construction.progress(rec);
     },
 

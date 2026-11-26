@@ -89,6 +89,7 @@ import { BloodFeuds } from './bloodFeuds.js';
 import { CadaverSynod } from './cadaverSynod.js';
 // (run time only: a child of theirs taken when their retinue is beaten)
 import { RivalCaptives } from './rivalCaptives.js';
+import { GroundGoods } from './groundGoods.js';
 
 export const RIVAL_TYPE = 'rival_retinue';
 const ERRANDS = ['trade', 'court', 'shadow', 'invest', 'waylay', 'law', 'home'];
@@ -1669,11 +1670,15 @@ export const RivalHouses = {
                     unit.inventory.gold = 0;
                 }
                 if (!rival.plan) this._plan(player, world, rival, unit, out);
+                const route0 = unit.route, step0 = _num(unit.step);
                 if (rival.plan && rival.plan.kind !== 'waylay' && this._advance(world, unit)) this._arrive(player, world, rival, unit, out);
                 // Business done or the stay over: settle the next errand now, to ride tomorrow
                 if (!rival.plan) this._plan(player, world, rival, unit, out);
+                // Goods lying where the retinue rode and where it stands: picked up into the House's stores (systems/groundGoods.js)
+                this._gleanDay(player, world, rival, unit, route0, step0, out);
                 // In a town: arms for the men who lack them, out of its armourers' stock
                 const here = this._settlementAt(world, unit.q, unit.r);
+                this._storesDay(world, rival, here, day);
                 if (here && here.market) {
                     this._buyArms(world, rival, here);
                     unit.strength = this.strength(rival);
@@ -1692,6 +1697,63 @@ export const RivalHouses = {
             }
         });
         return out;
+    },
+
+    // ──────────── WHAT THE RETINUE PICKS UP ────────────
+
+    /**
+     * The hexes the retinue rode through today and the one it stands on: what
+     * lies there it may pick up (GroundGoods.retinueGlean, into rival.stores).
+     */
+    _gleanDay(player, world, rival, unit, route0, step0, out) {
+        const cells = [];
+        if (Array.isArray(route0) && unit.route === route0 && _num(unit.step) > step0) {
+            for (let i = step0 + 1; i < unit.step; i++) cells.push({ q: route0[i * 2], r: route0[i * 2 + 1], stay: false });
+        }
+        cells.push({ q: unit.q, r: unit.r, stay: true });
+        const got = GroundGoods.retinueGlean(world, rival, cells, _day(world));
+        if (!got.length) return got;
+        rival.stats.gleaned = _num(rival.stats.gleaned) + got.reduce((a, g) => a + g.n, 0);
+        const near = got.filter(g => player && _dist(world, player, g) <= 1);
+        if (near.length && out) {
+            const head = near.find(g => g.head);
+            out.notices.push({ icon: '🏰', title: 'A Retinue Gleans', text: `${head ? `${this.headName(rival)} has his men pick up` : `${rival.name}'s retinue picks up`} ${near.map(g => GroundGoods.describe(g.good, g.n)).join(', ')} lying here, and rides on with ${near.length > 1 ? 'them' : 'it'}.`, type: 'info' });
+        }
+        return got;
+    },
+
+    /**
+     * The House's stores (what its retinue picked up): in a market town the
+     * goods it trades are sold there, at a discount (the town pays out of its
+     * purse, as far as it can); each week a share of the rest is used by the
+     * household.
+     */
+    _storesDay(world, rival, town, day) {
+        const st = rival.stores;
+        if (!st || typeof st !== 'object') return;
+        const T = GroundGoods.config().retinue;
+        for (const good of Object.keys(st)) {
+            const have = Math.floor(_num(st[good]) + 1e-9);
+            if (town && town.market && !town.inKind && Economy.townPurse(town) != null && have >= 1 && SettlementMarket.tracks(good)) {
+                const unit = Utils.cents(GroundGoods.pileWorth({ good, qty: 1, grades: {} }) * _num(T.sellDiscount, 0.6));
+                const pay = unit > 0 ? Utils.cents(Economy.drawTown(town, unit * have)) : 0;
+                const sold = unit > 0 ? Math.min(have, Math.floor(pay / unit + 1e-9)) : have;
+                const refund = Utils.cents(pay - sold * unit);
+                if (refund > 0) Economy.payTown(town, refund);
+                if (sold > 0) {
+                    SettlementMarket.add(town, good, sold);
+                    st[good] = _num(st[good]) - sold;
+                    rival.gold = Utils.cents(_num(rival.gold) + sold * unit);
+                    rival.stats.storesSold = _num(rival.stats.storesSold) + sold;
+                }
+            } else if (day > 0 && day % 7 === 0 && have >= 1) {
+                const used = Math.min(have, Math.ceil(have * _num(T.useShare, 0.25)));
+                st[good] = _num(st[good]) - used;
+                rival.stats.storesUsed = _num(rival.stats.storesUsed) + used;
+            }
+            if (!(_num(st[good]) >= 1)) delete st[good];
+        }
+        if (!Object.keys(st).length) delete rival.stores;
     },
 
     // ──────────── WAYLAYING ────────────

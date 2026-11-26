@@ -43,6 +43,7 @@ import { CourtLetters } from '../systems/courtLetters.js';
 import { Ailments } from '../systems/ailments.js';
 import { Afterlife } from '../player/afterlife.js';
 import { SaveLoad } from '../systems/saveLoad.js';
+import { DayTurn } from './game/dayTurn.js';
 
 /** Hexes within which a hostile band counts as approaching. */
 const APPROACH = 3;
@@ -442,11 +443,20 @@ export const TimeSkip = {
         }
         if (skip.saveDue && p && !p._isDead && !Afterlife.active(p)) {
             try {
-                SaveLoad.saveGame(game).then((res) => {
+                const told = (res) => {
                     if (!game.ui || !res) return;
                     if (res.success && !SaveLoad.isIronman(game)) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
                     else if (!res.success && !res.superseded) game.ui.showNotification('⚠️ Not saved', res.error, 'error');
-                });
+                };
+                if (game.sliceDayEnd && DayTurn.canSlice() && typeof SaveLoad.saveGameSteps === 'function') {
+                    // (read and written out a few milliseconds a frame, as a day's autosave is: ui/game/dayTurn.js;
+                    // the turn held meanwhile so no day starts on a half-read world)
+                    game.isProcessingTurn = true;
+                    const steps = (function* () { (yield* SaveLoad.saveGameSteps(game)).then(told); })();
+                    DayTurn.runSliced(game, steps, { onDone: () => { game.isProcessingTurn = false; } });
+                } else {
+                    SaveLoad.saveGame(game).then(told);
+                }
             } catch (e) {
                 console.error('[TimeSkip] autosave failed', e);
             }

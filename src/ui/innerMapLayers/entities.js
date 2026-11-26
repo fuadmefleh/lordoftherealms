@@ -57,6 +57,59 @@ Object.assign(InnerMapRenderer, {
      * water tile: a slack curve, the float bobbing on the ripples, pulled
      * under (and the line drawn taut) when a fish bites.
      */
+    /** A washing line at the newcomers' camp: two posts, the sagging line, the wash on it stirring in the wind. */
+    _drawWashingLine(ctx, camera, ln, T, ds, now) {
+        const z = ds / T;
+        const base = camera.worldToScreen((ln.q0 + 0.5) * T, (ln.r + 0.9) * T);
+        const end = camera.worldToScreen((ln.q1 + 0.5) * T, (ln.r + 0.9) * T);
+        const h = 1.55 * ds;
+        const pw = Math.max(1.5, 3 * z);
+        ctx.save();
+        // the posts
+        ctx.fillStyle = '#5a3f26';
+        ctx.fillRect(base.x - pw / 2, base.y - h, pw, h);
+        ctx.fillRect(end.x - pw / 2, end.y - h, pw, h);
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(base.x - pw, base.y - 1, pw * 2, Math.max(1, 2 * z));
+        ctx.fillRect(end.x - pw, end.y - 1, pw * 2, Math.max(1, 2 * z));
+        // the line
+        const top = base.y - h + 2 * z, sag = 6 * z;
+        ctx.strokeStyle = '#d9cfb8';
+        ctx.lineWidth = Math.max(1, 1.2 * z);
+        ctx.beginPath();
+        ctx.moveTo(base.x, top);
+        ctx.quadraticCurveTo((base.x + end.x) / 2, top + sag * 2, end.x, top);
+        ctx.stroke();
+        // the wash: shirts, shifts, a blanket, in the colours of the seed
+        const COLS = ['#e8e2d0', '#b9c7d6', '#c9a27a', '#8fa37a', '#d8c27a', '#a8665a', '#efe9df'];
+        const n = 4;
+        let sd = ln.seed || 1;
+        const rnd = () => { sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0; return sd / 4294967296; };
+        for (let i = 0; i < n; i++) {
+            const t = (i + 0.6) / (n + 0.2);
+            const x = base.x + (end.x - base.x) * t;
+            const y = top + sag * 2 * 2 * t * (1 - t) * 0.98;
+            const cw = (6 + rnd() * 7) * z, ch = (7 + rnd() * 9) * z;
+            const sway = Math.sin(now * 1.7 + i * 1.3 + (ln.seed % 7)) * 1.2 * z;
+            ctx.fillStyle = COLS[Math.floor(rnd() * COLS.length)];
+            ctx.beginPath();
+            ctx.moveTo(x - cw / 2, y);
+            ctx.lineTo(x + cw / 2, y);
+            ctx.lineTo(x + cw / 2 + sway, y + ch);
+            ctx.lineTo(x - cw / 2 + sway, y + ch);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(40,30,20,0.35)';
+            ctx.lineWidth = Math.max(0.5, 0.8 * z);
+            ctx.stroke();
+            // the pegs
+            ctx.fillStyle = '#6b4a2c';
+            ctx.fillRect(x - cw / 2 + 1 * z, y - 1.5 * z, Math.max(1, 1.5 * z), Math.max(1, 3 * z));
+            ctx.fillRect(x + cw / 2 - 2.5 * z, y - 1.5 * z, Math.max(1, 1.5 * z), Math.max(1, 3 * z));
+        }
+        ctx.restore();
+    },
+
     _drawFishingLine(ctx, camera, T, ds, now, tx, ty, bobber) {
         const at = camera.worldToScreenFast(bobber.q * T + T / 2, bobber.r * T + T / 2);
         const bite = !!bobber.bite;
@@ -303,8 +356,10 @@ Object.assign(InnerMapRenderer, {
                 const charW = ds * 1.2;
                 const charH = ds * 1.8;
                 const charScale = npc._scale || (npc.type === 'child' ? 0.7 : 1.0);
-                const cw = charW * charScale;
-                const ch = charH * charScale;
+                // (gaunt with hunger — systems/townJobs.js payday, npc.gaunt: thinner, stooped)
+                const gaunt = npc.gaunt || (npc._person && npc._person.starve);
+                const cw = charW * charScale * (gaunt ? 0.84 : 1);
+                const ch = charH * charScale * (gaunt ? 0.96 : 1);
                 const cx = screenX - cw / 2;
                 const cy = screenY - ch + ds * 0.3;
 
@@ -922,6 +977,12 @@ Object.assign(InnerMapRenderer, {
             const ff = f;
             items.push({ sortY: (f.r + 1) * T + 0.5, zLayer: 1, sortX: f.q, draw() { InnerMapFelling.drawFalling(ctx, camera, ff, self); } });
         }
+        // ── The newcomers' washing lines at their camp (world/innerMap/arrivalCamp.js) ──
+        for (const ln of (InnerMap._campView && InnerMap._campView.lines) || []) {
+            if (ln.r < rMin - 3 || ln.r > rMax + 1 || ln.q1 < qMin - 1 || ln.q0 > qMax + 1) continue;
+            const L = ln;
+            items.push({ sortY: (ln.r + 1) * T - 1, zLayer: 1, sortX: ln.q0, draw() { self._drawWashingLine(ctx, camera, L, T, ds, now); } });
+        }
 
         // ── Phase 2: Collect buildings (legacy + custom) ────────────────────────
         for (let r = rMin; r <= rMax; r++) {
@@ -968,8 +1029,9 @@ Object.assign(InnerMapRenderer, {
                         const cq = q, cr = r, ruin = tile.customBuilding.ruin || null, wear = tile.customBuilding.wear || 0, spire = tile.customBuilding.spire || null;
                         // (the player's property on its lot: a building site while it goes up, its name over it)
                         const propRef = tile._propertyRef || null, propInfo = propRef ? tile.buildingInfo : null;
+                        const siteCb = tile.customBuilding.siteP != null ? tile.customBuilding : null;
                         items.push({ sortY, zLayer: 1, sortH: bldgH, sortX: q, draw() {
-                            self._drawCustomBuilding(ctx, camera, def, cq, cr, ds, ruin, self._siteProgress(propRef), wear, spire);
+                            self._drawCustomBuilding(ctx, camera, def, cq, cr, ds, ruin, self._siteProgress(propRef, siteCb), wear, spire);
                         }});
                         // (its name over the roof, drawn after the moving parts so a windmill's sails never hide it)
                         if (propInfo) {

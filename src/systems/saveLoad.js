@@ -50,6 +50,7 @@ import { Mail } from './mail.js';
 import { Couriers } from './couriers.js';
 import { Hospitality } from './hospitality.js';
 import { RiverDrift } from './riverDrift.js';
+import { GroundGoods } from './groundGoods.js';
 import { FishTraps } from './fishTraps.js';
 import { HandBuilding } from '../world/handBuilding.js';
 import { RiverLife } from './riverLife.js';
@@ -67,6 +68,7 @@ import { LastCrisis } from './lastCrisis.js';
 import { Executions } from './executions.js';
 import { Gibbets } from './gibbets.js';
 import { PenalLabour } from './penalLabour.js';
+import { TownPoor } from './townPoor.js';
 import { Flaying } from './flaying.js';
 import { Immurement } from './immurement.js';
 import { PeasantRevolts } from './peasantRevolts.js';
@@ -123,6 +125,8 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
 import { InteriorRecords } from '../world/interiorRecords.js';
 
+/** Rows of map tiles serialized, or written out as JSON, per step of saveGameSteps. */
+const TILE_ROWS_PER_STEP = 12;
 
 export const SaveLoad = {
     SAVE_KEY: 'lord_of_realms_save',
@@ -156,6 +160,19 @@ export const SaveLoad = {
      * before returning, uncompressed (leaving the page: ui/game/ironman.js).
      */
     saveGame(game, opts = {}) {
+        const steps = SaveLoad.saveGameSteps(game, opts);
+        let r = steps.next();
+        while (!r.done) r = steps.next();
+        return r.value;
+    },
+
+    /**
+     * saveGame as a generator of steps: the tiles serialized and the JSON written a few
+     * rows at a time, a `yield` between (the browser's day turn runs a day's autosave so
+     * across frames: ui/game/dayTurn.js). Returns saveGame's promise; the same bytes as
+     * saveGame — which drives it to the end at once.
+     */
+    *saveGameSteps(game, opts = {}) {
         let key, json, info, timestamp;
         try {
             const run = game.world && game.world.run;
@@ -166,9 +183,13 @@ export const SaveLoad = {
             if (typeof game.flushInteriors === 'function') {
                 try { game.flushInteriors(); } catch (e) { console.warn('Interiors not flushed before save:', e); }
             }
+            const now = Date.now();
+            yield;
+            const world = yield* SaveLoad.serializeWorldSteps(game.world);
+            yield;
             const saveData = {
                 version: '1.0',
-                timestamp: Date.now(),
+                timestamp: now,
                 // What the save list shows without reading the whole world
                 meta: {
                     ironman: !!(run && run.ironman),
@@ -177,11 +198,12 @@ export const SaveLoad = {
                     playerName: game.player ? game.player.name : '',
                     houseName: house ? house.name : '',
                 },
-                world: SaveLoad.serializeWorld(game.world),
+                world,
                 player: SaveLoad.serializePlayer(game.player),
                 notificationLog: game.ui ? game.ui.notificationLog.slice(-200) : [],
             };
-            json = JSON.stringify(saveData);
+            yield;
+            json = yield* SaveLoad._jsonSteps(saveData);
             key = SaveLoad.slotKey(game);
             info = SaveLoad._infoOf(saveData, key);
             timestamp = saveData.timestamp;
@@ -338,13 +360,63 @@ export const SaveLoad = {
      * Serialize world state
      */
     serializeWorld(world) {
+        return SaveLoad._serializeWorldWith(world, SaveLoad.serializeTiles(world.tiles));
+    },
+
+    /** serializeWorld in steps: the tiles a few rows a step (saveGameSteps). */
+    *serializeWorldSteps(world) {
+        const tiles = [];
+        const rows = world.tiles || [];
+        for (let r = 0; r < rows.length; r += TILE_ROWS_PER_STEP) {
+            for (const row of SaveLoad.serializeTiles(rows.slice(r, r + TILE_ROWS_PER_STEP))) tiles.push(row);
+            yield;
+        }
+        return SaveLoad._serializeWorldWith(world, tiles);
+    },
+
+    /**
+     * JSON.stringify(saveData) in steps, the same text: the world's entries one by one
+     * and its tiles a few rows at a time.
+     */
+    *_jsonSteps(saveData) {
+        const parts = [];
+        for (const k of Object.keys(saveData)) {
+            const v = saveData[k];
+            if (k === 'world' && v && typeof v === 'object' && !Array.isArray(v) && typeof v.toJSON !== 'function') {
+                const w = [];
+                for (const wk of Object.keys(v)) {
+                    const wv = v[wk];
+                    if (wk === 'tiles' && Array.isArray(wv)) {
+                        const rows = [];
+                        for (let r = 0; r < wv.length; r++) {
+                            const t = JSON.stringify(wv[r]);
+                            rows.push(t === undefined ? 'null' : t);
+                            if (r % TILE_ROWS_PER_STEP === TILE_ROWS_PER_STEP - 1) yield;
+                        }
+                        w.push(`${JSON.stringify(wk)}:[${rows.join(',')}]`);
+                        continue;
+                    }
+                    const t = JSON.stringify(wv);
+                    if (t !== undefined) w.push(`${JSON.stringify(wk)}:${t}`);
+                }
+                parts.push(`${JSON.stringify(k)}:{${w.join(',')}}`);
+                yield;
+                continue;
+            }
+            const t = JSON.stringify(v);
+            if (t !== undefined) parts.push(`${JSON.stringify(k)}:${t}`);
+        }
+        return `{${parts.join(',')}}`;
+    },
+
+    _serializeWorldWith(world, tiles) {
         return {
             width: world.width,
             height: world.height,
             day: world.day,
             season: world.season,
             year: world.year,
-            tiles: SaveLoad.serializeTiles(world.tiles),
+            tiles,
             kingdoms: SaveLoad.serializeKingdoms(world.kingdoms),
             events: world.events,
             activeEvents: world.activeEvents || [],
@@ -386,6 +458,8 @@ export const SaveLoad = {
             // The player's settlers & borders policy and the great flows of people (systems/migration.js;
             // each town's trend travels with it: settlement.migr; the columns are world units above)
             migration: Migration.serialize(world),
+            // The year's books of the towns' poor: alms, hunger, deaths (systems/townPoor.js)
+            townPoor: TownPoor.serialize(world),
             // The rural sites around the towns (deposits, reserves), mining leases,
             // auctions and prospectors (world/hinterland.js, systems/concessions.js)
             hinterland: Hinterland.serialize(world),
@@ -439,6 +513,8 @@ export const SaveLoad = {
             fieldMarks: world.fieldMarks ? JSON.parse(JSON.stringify(world.fieldMarks)) : null,
             // Things adrift on the rivers, caught on weirs, lying in lakes (systems/riverDrift.js)
             riverDrift: RiverDrift.serialize(world),
+            // Goods left on the ground, hex by hex, and the books of what was taken, rotted or thrown away (systems/groundGoods.js)
+            groundGoods: GroundGoods.serialize(world),
             // The player's fish traps set in the edge water, and what is in them (systems/fishTraps.js)
             fishTraps: FishTraps.serialize(world),
             // What the player built by hand on the street maps: sites, fences, sheds, wells, their stores, camps staked (world/handBuilding.js)
@@ -1211,6 +1287,7 @@ export const SaveLoad = {
         Labour.restore(saveData.labour, world);
         // The settlers & borders policy and the great flows (older saves: open gates, no grants)
         Migration.restore(saveData.migration, world);
+        TownPoor.restore(saveData.townPoor, world);
         // The hinterland (older saves: none — the sites are derived from the terrain on the next day)
         Hinterland.restore(saveData.hinterland, world);
         // Trade policy news (older saves: none; realms set their policy on their next turn)
@@ -1254,6 +1331,8 @@ export const SaveLoad = {
         world.fieldMarks = saveData.fieldMarks && typeof saveData.fieldMarks === 'object' ? saveData.fieldMarks : {};
         // Things adrift on the rivers (older saves: none)
         RiverDrift.restore(saveData.riverDrift, world);
+        // Goods left on the ground (older saves: none)
+        GroundGoods.restore(saveData.groundGoods, world);
         // The fish traps (older saves: none)
         FishTraps.restore(saveData.fishTraps, world);
         // What was built by hand (older saves: nothing)

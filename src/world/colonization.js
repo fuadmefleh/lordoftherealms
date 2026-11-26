@@ -16,6 +16,7 @@ import { VillageFounding } from './villageFounding.js';
 import { Barter } from './barter.js';
 import { MoneySupply } from './moneySupply.js';
 import { TownSiting } from './townSiting.js';
+import { TownGrowth } from './townGrowth.js';
 
 export const Colonization = {
 
@@ -188,6 +189,13 @@ export const Colonization = {
      * Called each day from World.advanceDay()
      */
     processTurn(world, playerBonuses = {}, player = null) {
+        const steps = Colonization.processTurnSteps(world, playerBonuses, player);
+        let r = steps.next();
+        while (!r.done) r = steps.next();
+    },
+
+    /** processTurn as steps, a realm's colonies a step (World.advanceDaySteps; the day run across frames). */
+    *processTurnSteps(world, playerBonuses = {}, player = null) {
         // 1. Process all colonies for every kingdom
         // (the distant years, player/afterlife.js: once every realmEvery days, worked as that many)
         const D = world._distant;
@@ -197,14 +205,17 @@ export const Colonization = {
                 if (!kingdom.isAlive || !kingdom.colonization) continue;
                 if (every > 1) Colonization.processKingdomColonies(kingdom, world, playerBonuses, player, every);
                 else Colonization.processKingdomColonies(kingdom, world, playerBonuses, player);
+                yield;
             }
         }
 
         // 2. The player's own villages: fed outside a realm, frontier growth, towns, budding (world/villageFounding.js)
         VillageFounding.processDay(world, player, playerBonuses);
+        yield;
 
         // 3. Process indigenous population dynamics
         Colonization.processIndigenous(world);
+        yield;
 
         // 4. AI kingdom colonization attempts
         Colonization.processKingdomColonization(world);
@@ -793,27 +804,46 @@ export const Colonization = {
         return paid;
     },
 
+    /**
+     * Settlers on the road to one of the player's colonies come in, a few a day,
+     * whatever the colony's size or loyalty: they have left their old town and
+     * were paid to come (recruitSettlers), so they always arrive. Run daily for
+     * every colony the player holds (VillageFounding.processDay).
+     * → how many arrived today
+     */
+    _deliverSettlers(tile, world) {
+        const s = tile && tile.settlement;
+        const rec = s && s.colony && s.colony.recruitment;
+        if (!rec || !(rec.enRoute > 0)) return 0;
+        // A day's walk brings in a party: a third of those on the road (at least 1, 1–3 for a few)
+        const party = rec.enRoute <= 3 ? Utils.randInt(1, 3) : Math.max(3, Math.ceil(rec.enRoute / 3));
+        const arriving = Math.min(rec.enRoute, party);
+        s.population = (s.population || 0) + arriving;
+        rec.enRoute -= arriving;
+        rec.arrived = (rec.arrived || 0) + arriving;
+        // (no room for them yet: they camp at the village's edge and build, systems/arrivalCamps.js)
+        TownGrowth.noteArrival(s, arriving, world && Number.isFinite(world.day) ? world.day : 0, 'recruited settlers', 'colonists');
+        // Per-settler cost for gold_bonus incentive
+        if (rec.incentive === 'gold_bonus') {
+            const incentiveDef = Colonization.INCENTIVES.gold_bonus;
+            // Out of the colony's purse, to the newcomers — who send it home to their kin
+            Colonization._colonySpends(world, tile, arriving * (incentiveDef.perSettlerCost || 10));
+        }
+        if (Array.isArray(world.events)) {
+            world.events.push({ category: 'colony', text: `🎒 ${arriving} settler${arriving === 1 ? '' : 's'} reached ${s.name || 'your colony'}${rec.enRoute > 0 ? ` (${rec.enRoute} still on the road)` : ''}.`, impact: 'positive', day: world.day });
+        }
+        return arriving;
+    },
+
     _processSettlerArrivals(tile, world) {
         const colony = tile.settlement.colony;
         if (!colony || !colony.recruitment) return;
 
         const rec = colony.recruitment;
 
-        // 1. Settlers en-route arrive (1-3 day travel time simulated)
-        if (rec.enRoute > 0) {
-            const arriving = Math.min(rec.enRoute, Utils.randInt(1, 3));
-            tile.settlement.population += arriving;
-            rec.enRoute -= arriving;
+        // (settlers on the road come in by _deliverSettlers, every day for every colony)
 
-            // Per-settler cost for gold_bonus incentive
-            if (rec.incentive === 'gold_bonus') {
-                const incentiveDef = Colonization.INCENTIVES.gold_bonus;
-                // Out of the colony's purse, to the newcomers — who send it home to their kin
-                Colonization._colonySpends(world, tile, arriving * (incentiveDef.perSettlerCost || 10));
-            }
-        }
-
-        // 2. Passive attraction from signboard + reputation + incentives
+        // Passive attraction from signboard + reputation + incentives
         let arrivalChance = 0;
 
         // Signboard: very small trickle

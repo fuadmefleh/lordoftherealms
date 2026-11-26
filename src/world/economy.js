@@ -12,6 +12,7 @@ import { Coinage } from './coinage.js';
 import { Harvests } from './harvests.js';
 import { CrownBooks } from './crownBooks.js';
 import { MoneySupply } from './moneySupply.js';
+import { TownHousing } from './townHousing.js';
 
 /** The distant years' production profiles (calculateProduction): economy → { world, day, type, prod, rb }. */
 const _distantProd = new WeakMap();
@@ -869,7 +870,9 @@ export const Economy = {
         const type = F.capacity[settlement.type] ? settlement.type : 'village';
         const cap = type === 'village' && !settlement.dawnBorn && !settlement.playerFounded && F.villageCap > 0
             ? Math.min(F.capacity.village, F.villageCap) : F.capacity[type];
-        return Math.max(0, 1 - Math.max(0, Number(settlement.population) || 0) / cap);
+        // (...and no faster than its houses take them: a town packed past its houses grows no more —
+        // world/townHousing.js growthFactor; 1 with room, or a town not yet counted)
+        return Math.max(0, 1 - Math.max(0, Number(settlement.population) || 0) / cap) * TownHousing.growthFactor(settlement);
     },
 
     /** Feed a settlement for one day and grow or shrink its population. */

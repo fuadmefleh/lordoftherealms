@@ -2,7 +2,8 @@
 // player holds (systems/lots.js holdingsView): its town, its state (an empty
 // lot, building, built; a house rented or owned), the tenant, the rent, the
 // day it was last paid and any arrears — and what can be done with each:
-// raise a house to let on an empty lot (or have it blessed as a burial
+// raise a house to let on an empty lot (or a tenement or row houses to let by
+// the room, in a town: systems/lots.js buildTenementOnLot), or have it blessed as a burial
 // ground: systems/graveyards.js), let a house / take it off the
 // letting, put a tenant out, give up a rented house, sell a lot or a house.
 // Opened from the world action menu in town ('town_lots') and from a lot or
@@ -41,7 +42,9 @@ function row(game, v) {
 
     const facts = [];
     if (v.what) facts.push(`On it: ${esc(v.what)}`);
-    if (v.state === 'rented') {
+    if (v.rooms) {
+        facts.push(`<b>${v.lodgers || 0}</b> of ${v.rooms} rooms let at ${Utils.formatGold(v.roomRent)}g a day each`);
+    } else if (v.state === 'rented') {
         facts.push(`Rent ${Utils.formatGold(v.rent)}g a day, paid by you`);
         facts.push(`Last paid ${daysAgo(world, v.paidDay)}`);
     } else if (v.tenant) {
@@ -56,9 +59,14 @@ function row(game, v) {
     const rows = [];
     if (v.canBuildHouse) {
         rows.push({ icon: '🏗️', name: 'Build a House to Let', desc: `Stands in ${LotBook.houseDays(worldTypeOf(world, v) || 'village')} days, then let for a daily rent. Shops and workshops are built on the town map.`, side: price(v.houseCost, gold >= v.houseCost), ...act('build') });
+        // (a tenement or row houses, let by the room: crowded towns fill them — world/townHousing.js)
+        for (const t of v.tenements || []) {
+            rows.push({ icon: t.id === 'tenement' ? '🏢' : '🏘️', name: `Build ${t.name} to Let by the Room`, desc: `${t.rooms} rooms, standing in ${t.days} days; lodgers pay you rent for each, the more the town is crowded`, side: price(t.cost, gold >= t.cost), ...act(`tenement:${t.id}`) });
+        }
         const fee = Graveyards.consecrateFee(world.getTile(v.q, v.r) && world.getTile(v.q, v.r).settlement);
         rows.push({ icon: '⛪', name: 'Make it a Burial Ground', desc: 'The priest blesses it; the townsfolk lease its plots from you', side: price(fee, gold >= fee), ...act('consecrate') });
     }
+    if (v.rooms && v.lodgers) rows.push({ icon: '🚪', name: 'Put the Lodgers Out', desc: 'Every room empty again (and to let, if you let it)', tone: 'bad', ...act('lodgersOut') });
     if (v.canLet) rows.push({ icon: '🔑', name: 'Let it', desc: 'Offer it to the townsfolk: a tenant pays you rent each day', ...act('let') });
     if (v.canStopLetting) rows.push({ icon: '🔒', name: 'Stop letting', desc: 'Take it off the letting', ...act('unlet') });
     if (v.canEvict) rows.push({ icon: '🚪', name: 'Put the Tenant Out', desc: (v.owed > 0 ? `Their ${Utils.formatGold(v.owed)}g of arrears is lost` : 'The house goes back to let') + evictNote(game), tone: 'bad', ...act('evict') });
@@ -113,6 +121,9 @@ Object.assign(ActionMenu, {
         let res;
         switch (op) {
             case 'build': res = Lots.buildHouseOnLot(player, world, s, ref); break;
+            case 'tenement:tenement': res = Lots.buildTenementOnLot(player, world, s, ref, 'tenement'); break;
+            case 'tenement:rowhouse': res = Lots.buildTenementOnLot(player, world, s, ref, 'rowhouse'); break;
+            case 'lodgersOut': res = Lots.clearLodgers(player, world, q, r, ref); break;
             case 'consecrate': res = Graveyards.consecrate(player, world, s, ref); break;
             case 'let': res = Lots.letHouse(player, world, q, r, ref); break;
             case 'unlet': res = Lots.stopLetting(player, world, q, r, ref); break;

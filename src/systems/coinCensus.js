@@ -129,6 +129,8 @@ export const CoinCensus = {
                 if (folk) for (const p of folk) if (p && !p.away && typeof p.purse === 'number') add(kid, 'folk', p.purse);
                 if (s.folk && _obj(s.folk.school)) add(kid, 'towns', s.folk.school.fund);
             }
+            // (a town's poor box, an almshouse's endowment — systems/townPoor.js: coin held for the dole)
+            if (_obj(s.poor)) add(kid, 'coffers', s.poor.box);
             const uw = _obj(s.underworld);
             if (uw) {
                 for (const g of Array.isArray(uw.gangs) ? uw.gangs : []) if (g) add(kid, 'underworld', g.purse);
@@ -280,6 +282,7 @@ export const CoinCensus = {
             }
             // (the town school's fund — systems/literacy.js, townSchool.js: coin the town holds for it)
             if (s.folk && _obj(s.folk.school) && typeof s.folk.school.fund === 'number') fn(s.folk.school, 'fund', 'towns');
+            if (_obj(s.poor) && typeof s.poor.box === 'number') fn(s.poor, 'box', 'coffers');
             const uw = _obj(s.underworld);
             if (uw) {
                 for (const g of Array.isArray(uw.gangs) ? uw.gangs : []) if (g) fn(g, 'purse', 'underworld');

@@ -73,6 +73,7 @@ import { Thirst } from '../player/thirst.js';
 import { Maiming } from '../systems/maiming.js';
 import { PeasantRevolts } from '../systems/peasantRevolts.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { GroundGoods } from '../systems/groundGoods.js';
 import { Fiscal } from '../systems/fiscal.js';
 import { CoinCensus } from '../systems/coinCensus.js';
 import { RealmArms } from '../world/realmArms.js';
@@ -789,8 +790,46 @@ function runOne(seed) {
                         return Object.fromEntries(STRAINS.map(id => [id, (P[id].parts || []).map(x => `${x.label.replace(/\s*\(.*\)/, '').slice(0, 24)}=${x.value}`).join('; ')]));
                     } catch (e) { return null; }
                 })() : null,
+                // The ground store (systems/groundGoods.js): bounded, its books closing; the towns' food stock beside it
+                gg: (() => {
+                    const L = GroundGoods.ledger(w);
+                    const views = w.getSettlementViews();
+                    let food = 0, finds = 0;
+                    for (const v of views) {
+                        for (const [g, n] of Object.entries((v.market && v.market.stock) || {})) { const d = SettlementMarket.good(g); if (d && d.group === 'food') food += n; }
+                        for (const n of Object.values(v.finds || {})) finds += n;
+                    }
+                    return { piles: L.piles, qty: L.onHand, in: Math.round(L.in), out: Math.round(L.out), gap: L.gap, inBy: L.inBy, outBy: L.outBy, finds: L.finds, findsHeld: Math.round(finds), food: Math.round(food) };
+                })(),
             };
+            // The poor and the housing (world/townPoor.js, world/townHousing.js where present): the
+            // world's people, idle hands, crime, the peasants' welfare, who left, the year's hunger,
+            // charity and crowding
+            row.poor = (() => {
+                const views = w.getSettlementViews();
+                let pop = 0, idle = 0, crime = 0, wel = 0, cap = 0, over = 0, hungry = 0, big = 0, emig = 0;
+                for (const v of views) {
+                    const n = v.population || 0;
+                    pop += n;
+                    if (n > big) big = n;
+                    const lab = v.labour;
+                    if (lab) { idle += n * (lab.idleAll || 0); crime += n * (lab.crime || 0); wel += n * ((lab.wel && lab.wel.peasants) || 0); }
+                    if (v.migr && v.migr.yr) emig += v.migr.yr.out || 0;
+                    const pr = v.poor;
+                    if (pr) { cap += pr.cap || 0; if ((pr.crowd || 0) > 1.05) over++; hungry += n * (pr.hunger || 0); }
+                }
+                const P = pop || 1;
+                // (the year just ended: the books roll over at a town's first market turn of the new year)
+                const ty = Math.floor(w.day / Y) - 1;
+                const led = w.townPoor ? [w.townPoor.yr, w.townPoor.last].find(x => x && x.y === ty) || null : null;
+                return {
+                    towns: views.length, pop: Math.round(pop), big: Math.round(big), idle: r2(idle / P * 100), crime: r2(crime / P * 100), welP: r2(wel / P), emig: Math.round(emig),
+                    cap: Math.round(cap), crowd: cap ? r2(pop / cap) : null, over, hunger: r2(hungry / P * 100), led,
+                };
+            })();
+            out(`  [${seed}] poor y${year} ${JSON.stringify(row.poor)}`);
             rows.push(row);
+            out(`  [${seed}] gg y${year} piles ${row.gg.piles} qty ${row.gg.qty} in ${row.gg.in} out ${row.gg.out} gap ${row.gg.gap} finds ${row.gg.findsHeld} food ${row.gg.food}`);
             if (ENV.EG_MILTRACE) milTraceYear(game, seed, year);
             out(`[${seed}] y${year} ${row.ms}ms realms ${row.realms} ${row.home || '-'} r${reignY} towns ${row.towns} (rival ${row.rivalTowns}, lead ${row.lead}) ts ${row.townShare} ms ${row.mightShare} prog ${row.prog}${row.dom ? ' DOM' : ''} held ${row.held}/${row.need} ${row.phase} | ${strains ? STRAINS.map(id => `${id[0]}${strains[id]}/${row.pressure[id]}`).join(' ') : '-'} stab ${row.stab} | crowns ${row.crowns}${sep.length ? ` sep ${sep.join(',')}` : ''}${row.emperor ? ' EMP' : ''}${row.crisis ? ` crisis:${row.crisis}` : ''} ai ${row.aiDecl} | ${row.gold}g army ${row.army} pr ${row.prestige} age ${row.age}`);
             if (year % 5 === 0) {

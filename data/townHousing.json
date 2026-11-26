@@ -1,0 +1,45 @@
+{
+    "_doc": "Housing of every town (world/townHousing.js). A town's dwellings are counted by type (settlement.housing.d: { type: n }), derived the first time from its people, size and era (mix[type], slack over its people). Each dwelling houses `people` (a family and its kin; × eraMult[type][era] for buildings that rise a storey higher in stone) and lets `rooms` rooms to lodgers (lodgersPerRoom each) — the soft room a crowded town finds before it sleeps in the streets. foot: the building plot it takes (a row house half a plot, a tenement one plot for three or four families). Plots: the town's building ground, its dwellings' feet plus free plots (freePlots[type] × the feet at first, edgePlots a week added at the town's edge while free plots are scarce (a village or a town half as many as its shortfall of houses, at least that), or as the town-growth code lays streets: TownHousing.addPlots). Builders: each `build.every` days a town short of room (capacity under build.aim × its people) raises dwellings (build.perWeek[type] + perThousand a thousand people), each `days` to build, its materials taken from the market's stock (a house goes up slower without them: build.bareDays). What goes up is TownHousing.nextDwellingType: the town's mix for its size and era, denser (row houses, then tenements in town and city) as its free plots run under denseBelow of its ground or its people crowd past denseCrowd. Effects of crowding (crowd = people ÷ capacity): past 1, lodgers take the rooms let (lodgerWeight of the harm), past capacity + rooms the rest double up and sleep rough (full harm): rent × (1 + rentPer × over, ≤ rentMax; under capacity × down to rentMin), sickness × (1 + sickPer × over, ≤ sickMax), fire × (1 + firePer × over, ≤ fireMax), welfare − welfare × over (world/townLabour.js), growth ends at over growthStop (world/economy.js growthRoom), and the welfare pushes people to other towns.",
+    "enabled": true,
+    "lodgersPerRoom": 2,
+    "eraDefault": { "village": "timber", "town": "timber", "city": "stone", "capital": "stone" },
+    "types": {
+        "hovel":     { "name": "Hovel", "people": 5, "rooms": 0, "foot": 1, "minType": "village", "eras": ["hearth", "timber"], "materials": { "wood": 2 }, "days": 10, "design": "house" },
+        "cottage":   { "name": "Cottage", "people": 6, "rooms": 1, "foot": 1, "minType": "village", "materials": { "wood": 2, "planks": 2 }, "days": 18, "design": "house" },
+        "house":     { "name": "House", "people": 7, "rooms": 2, "foot": 1, "minType": "village", "eras": ["timber", "stone", "guild"], "materials": { "planks": 4, "stone": 1 }, "days": 26, "design": "house" },
+        "townhouse": { "name": "Townhouse", "people": 8, "rooms": 4, "foot": 0.8, "minType": "town", "eras": ["timber", "stone", "guild"], "materials": { "planks": 5, "stone": 3 }, "days": 34, "design": "house" },
+        "row":       { "name": "Row houses", "people": 12, "rooms": 2, "foot": 1, "minType": "town", "eras": ["timber", "stone", "guild"], "materials": { "planks": 5, "stone": 3 }, "days": 34, "design": "rowhouse" },
+        "tenement":  { "name": "Tenement", "people": 22, "rooms": 6, "foot": 1, "minType": "town", "eras": ["timber", "stone", "guild"], "materials": { "planks": 9, "stone": 5 }, "days": 48, "design": "tenement" },
+        "lodging":   { "name": "Lodging house", "people": 6, "rooms": 8, "foot": 1, "minType": "town", "eras": ["timber", "stone", "guild"], "materials": { "planks": 6, "stone": 2 }, "days": 36, "design": "tenement" }
+    },
+    "eraMult": { "tenement": { "stone": 1.25, "guild": 1.4 }, "townhouse": { "stone": 1.1, "guild": 1.2 }, "row": { "guild": 1.15 } },
+    "mix": {
+        "village": { "hovel": 0.15, "cottage": 0.65, "house": 0.2 },
+        "town":    { "cottage": 0.25, "house": 0.45, "townhouse": 0.15, "row": 0.1, "lodging": 0.05 },
+        "city":    { "cottage": 0.05, "house": 0.35, "townhouse": 0.3, "row": 0.18, "tenement": 0.07, "lodging": 0.05 },
+        "capital": { "house": 0.3, "townhouse": 0.32, "row": 0.2, "tenement": 0.12, "lodging": 0.06 }
+    },
+    "dense": {
+        "village": ["cottage", "house"],
+        "town":    ["row", "townhouse", "tenement"],
+        "city":    ["tenement", "row", "tenement"],
+        "capital": ["tenement", "tenement", "row"]
+    },
+    "slack": 1.08,
+    "freePlots": { "village": 1.2, "town": 0.35, "city": 0.15, "capital": 0.08 },
+    "edgePlots": { "village": 6, "town": 4, "city": 2, "capital": 1 },
+    "daysPerYear": 120,
+    "build": { "every": 7, "aim": 1.05, "perWeek": { "village": 1, "town": 1, "city": 2, "capital": 3 }, "perThousand": 0.5, "maxQueue": 40, "catchUp": 0.15, "denseBelow": 0.12, "denseCrowd": 1.05, "bareDays": 1.6 },
+    "effects": { "rentPer": 1.5, "rentMax": 2.5, "rentMin": 0.75, "sickPer": 2, "sickMax": 1.8, "firePer": 2.5, "fireMax": 2.2, "welfare": 0.6, "welfareMax": 0.25, "lodgerWeight": 0.3, "growthStop": 0.12 },
+    "player": {
+        "_doc": "What the player may raise on a lot of their own to let by the room (systems/lots.js buildTenementOnLot): cost[type][town type] gold, standing after days; each room let to a lodger at the town's house rent × roomShare a day (× the crowding's rent), a room taken at tenantChance a day (× the crowding) and left at leaveChance.",
+        "kinds": {
+            "rowhouse": { "name": "Row Houses", "label": "row houses", "rooms": 4, "minType": "town", "cost": { "village": 260, "town": 420, "city": 700, "capital": 950 }, "days": { "village": 50, "town": 60, "city": 70, "capital": 80 }, "dwelling": "row" },
+            "tenement": { "name": "Tenement", "label": "a tenement", "rooms": 9, "minType": "town", "cost": { "village": 400, "town": 650, "city": 1050, "capital": 1400 }, "days": { "village": 60, "town": 70, "city": 80, "capital": 90 }, "dwelling": "tenement" }
+        },
+        "roomShare": 0.2,
+        "tenantChance": 0.1,
+        "leaveChance": 0.01,
+        "missChance": 0.04
+    }
+}

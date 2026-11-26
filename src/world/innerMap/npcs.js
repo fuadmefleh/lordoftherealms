@@ -91,6 +91,8 @@ Object.assign(InnerMap, {
             if (tile.customBuilding && tile.customBuilding.lotId) buildingType = (customBuildingDef && customBuildingDef.buildingType) || 'house';
             // Skip player property tiles — they are handled by _addPropertyBuildings()
             if (tile._buildingTypeHint === 'player_property') continue;
+            // (nor a newcomer's house still going up: a building site, no way in yet — systems/arrivalCamps.js)
+            if (tile.customBuilding && tile.customBuilding.siteP != null) continue;
             if (!buildingType && tile._buildingTypeHint) {
                 buildingType = tile._buildingTypeHint;
                 // Remove from required/optional lists to avoid double-assignment

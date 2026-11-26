@@ -22,6 +22,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { Arms } from '../systems/arms.js';
 import { itemPicture } from './icons.js';
 import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
+import { InnerMapGroundGoods } from './innerMapGroundGoods.js';
 import { HotbarLayout, HOTBAR_SLOTS } from '../player/hotbarLayout.js';
 
 const SLOT_COUNT = HOTBAR_SLOTS;
@@ -284,9 +285,11 @@ export const Hotbar = {
         const placed = this._placeItem(itemId, q, r, tile);
         if (!placed) return false;
 
-        // Deduct from inventory
-        inv[itemId]--;
-        if (inv[itemId] <= 0) delete inv[itemId];
+        // Deduct from inventory (set on the ground, the world's store took it out already: ui/innerMapGroundGoods.js)
+        if (placed !== 'taken') {
+            inv[itemId]--;
+            if (inv[itemId] <= 0) delete inv[itemId];
+        }
 
         // Update HUD
         if (_game.ui) _game.ui.updateStats(_game.player, _game.world);
@@ -328,20 +331,16 @@ export const Hotbar = {
             return false;
         }
 
+        // Set down on the ground: the world keeps it on this hex (systems/groundGoods.js), the worn piece stays on
+        const res = InnerMapGroundGoods.dropAt(_game, itemId, 1, q, r);
+        if (!res.ok) {
+            _game.ui.showNotification('Blocked', res.reason || 'You cannot set it down there.', 'error');
+            return false;
+        }
         const name = _getItemName(itemId);
         const icon = _getItemIcon(itemId);
-
-        // Create a ground item marker on the tile
-        tile.groundItem = {
-            itemId,
-            name,
-            icon,
-            quantity: 1,
-            placedBy: 'player',
-        };
-
-        _game.ui.showNotification(`${icon} Placed`, `Dropped ${name} at (${q}, ${r}).`, 'info');
-        return true;
+        _game.ui.showNotification(`${icon} Placed`, `Set ${name} down on the ground${res.pile.qty > 1 ? ` (${res.pile.qty} there now)` : ''}.`, 'info');
+        return 'taken';
     },
 
     // ── Rendering ──

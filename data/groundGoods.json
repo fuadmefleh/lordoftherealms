@@ -1,0 +1,244 @@
+{
+    "_doc": "Goods left on the ground, per world hex (systems/groundGoods.js, ui/innerMapGroundGoods.js). take: the daily chance someone carries a pile off, by place (town, road, wilds); valueAt: a pile worth this much doubles the chance (capped at valueMax times); graceDays: a pile set down today is left until tomorrow. rotMult: a perishable rots this many times faster on the ground than in a market's store (spoil rates: data/markets.json). lairRange / caravanOn: outlaws within this many hexes take wild finds to their hoard; a trader on the hex loads road finds. perHex / totalCap: the most piles one hex and the whole world hold (a full hex takes no more drops; the towns stop leaving refuse past the total). refuse: a town's market leaves a little of its rotting food in the street (taken out of its stock: it would have spoiled there anyway); beggars and scavengers clear it. confirmValue: throwing away a stack worth this much asks first. claimDays: goods someone set down (not abandoned) are theirs for this many days; lifting them while the owner is about is theft (systems/containers.js stealGoods).",
+    "enabled": true,
+    "take": {
+        "town": 0.35,
+        "road": 0.14,
+        "wilds": 0.025
+    },
+    "valueAt": 40,
+    "valueMax": 2.5,
+    "graceDays": 1,
+    "rotMult": 3,
+    "minSpoil": 0,
+    "lairRange": 3,
+    "perHex": 16,
+    "totalCap": 900,
+    "claimDays": 1,
+    "ownerSight": 8,
+    "confirmValue": 40,
+    "streetScanSeconds": 3,
+    "streetRadius": 14,
+    "streetKneelSeconds": 2.5,
+    "refuse": {
+        "enabled": true,
+        "chance": 0.12,
+        "goods": [
+            "bread",
+            "fish",
+            "meat",
+            "cabbage",
+            "plums",
+            "berries",
+            "milk",
+            "eggs"
+        ],
+        "maxQty": 3
+    },
+    "takers": {
+        "town": [
+            "a beggar",
+            "a scavenger",
+            "a townswoman",
+            "a townsman",
+            "a street child",
+            "a ragpicker"
+        ],
+        "road": [
+            "a traveller",
+            "a carter",
+            "a pedlar",
+            "a pilgrim"
+        ],
+        "wilds": [
+            "a woodsman",
+            "a shepherd",
+            "a wanderer",
+            "a charcoal burner"
+        ],
+        "outlaws": [
+            "outlaws"
+        ]
+    },
+    "_docSet": "setDown: goods people set down for the day near the player (within range hexes): a stallholder's crates, washing or firewood by a door, harvest sacks by the field (autumn) — out of the town market's stock — and a caravan unloading in a town, its carter resting at the roadside, its camp in the wilds — out of its cargo. Claimed (theirs) till the day's end; the next day reclaim of them go back where they came from, the rest lie abandoned. On the street map the owner stands about and walks back for it at backHour (12-19). inside: piles left in a building: its people take them at take a day (a public house's staff and patrons into the town, a home's household into its larder or the house), servants clear refuse. retinue: a rival House's retinue picks up piles where it stays (stay) or rides through (pass); worth valuableAt or more, the head grabs it (headGrab, grasping heads more); sold in a market town at sellDiscount, the rest used useShare a week. finds: the townsfolk's houses use use of what they keep a day (faster past cap), sell trickle a day into a market that deals in it, and offer it second-hand at discount. kinds: butchered meat (spoil when the market has no rate), spent arrows, wreck salvage (a strongbox sinks into the silt after sinkDays). A house standing empty (to let) has nobody to take it in: vacantMult of the chance, by the landlord's man (into the town).",
+    "inside": {
+        "take": 0.4,
+        "publicTypes": [
+            "tavern",
+            "inn",
+            "guest_house",
+            "hotel",
+            "roadhouse",
+            "church",
+            "temple",
+            "chapel",
+            "monastery",
+            "bathhouse",
+            "guildhall",
+            "town_hall",
+            "marketplace"
+        ],
+        "publicTakers": [
+            "the potboy",
+            "a serving girl",
+            "a patron",
+            "the sexton",
+            "a lay brother"
+        ],
+        "homeTakers": [
+            "the goodwife",
+            "the householder",
+            "a servant",
+            "the eldest boy"
+        ],
+        "clearers": [
+            "a servant",
+            "the maid",
+            "a scullion"
+        ],
+        "vacantMult": 0.1,
+        "vacantTaker": "the landlord's man"
+    },
+    "setDown": {
+        "enabled": true,
+        "range": 8,
+        "perTown": 2,
+        "reclaim": 0.9,
+        "kinds": {
+            "stall": {
+                "at": "town",
+                "chance": 0.45,
+                "goods": [
+                    "cabbage",
+                    "apples",
+                    "turnips",
+                    "eggs",
+                    "bread",
+                    "pottery",
+                    "candles",
+                    "wool",
+                    "barrel",
+                    "fish"
+                ],
+                "qty": [
+                    2,
+                    5
+                ],
+                "minStock": 12,
+                "names": [
+                    "a stallholder",
+                    "a market woman",
+                    "a costermonger",
+                    "a huckster"
+                ]
+            },
+            "household": {
+                "at": "town",
+                "chance": 0.35,
+                "goods": [
+                    "clothes",
+                    "linen",
+                    "firewood",
+                    "eggs",
+                    "bread",
+                    "wool"
+                ],
+                "qty": [
+                    1,
+                    4
+                ],
+                "minStock": 8,
+                "names": [
+                    "a washerwoman",
+                    "a goodwife",
+                    "a householder",
+                    "a cottar's wife"
+                ]
+            },
+            "harvest": {
+                "at": "town",
+                "chance": 0.5,
+                "seasons": [
+                    "autumn"
+                ],
+                "goods": [
+                    "grain",
+                    "turnips",
+                    "cabbage",
+                    "apples"
+                ],
+                "qty": [
+                    3,
+                    8
+                ],
+                "minStock": 20,
+                "names": [
+                    "a farmer",
+                    "a reaper",
+                    "a farmhand"
+                ],
+                "reclaim": 0.95
+            },
+            "unload": {
+                "chance": 0.5,
+                "qty": [
+                    2,
+                    6
+                ],
+                "names": [
+                    "a carter unloading",
+                    "a trader's man",
+                    "a drover"
+                ]
+            },
+            "carter": {
+                "chance": 0.35,
+                "qty": [
+                    2,
+                    5
+                ],
+                "names": [
+                    "a carter resting",
+                    "a waggoner",
+                    "a drover"
+                ]
+            },
+            "camp": {
+                "chance": 0.4,
+                "qty": [
+                    2,
+                    6
+                ],
+                "names": [
+                    "caravan guards at camp",
+                    "a trader's camp",
+                    "a muleteer"
+                ]
+            }
+        }
+    },
+    "retinue": {
+        "enabled": true,
+        "stay": 0.45,
+        "pass": 0.12,
+        "valuableAt": 30,
+        "headGrab": 0.7,
+        "sellDiscount": 0.6,
+        "useShare": 0.25
+    },
+    "finds": {
+        "cap": 40,
+        "use": 0.02,
+        "trickle": 0.25,
+        "discount": 0.6
+    },
+    "kinds": {
+        "meat": {
+            "spoil": 0.05
+        },
+        "arrows": {},
+        "salvage": {
+            "sinkDays": 90
+        }
+    }
+}

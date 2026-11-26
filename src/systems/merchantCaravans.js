@@ -723,6 +723,7 @@ export const MerchantCaravans = {
         const enemies = MerchantCaravans._enemies(world, u);
         const isShip = u.type === 'trade_ship';
         let seizeRolled = false;
+        const raiderRange = _num(A.raiderRange, 1);
         if (!Array.isArray(u.lairsPassed)) u.lairsPassed = [];
         // A day's way: a hex a step, a mountain dearer (world/mountainBarriers.js marchCost) — the
         // rest of a day short of a climb is carried into it (u.marchCarry). Ships sail on.
@@ -757,11 +758,12 @@ export const MerchantCaravans = {
                     return;
                 }
             }
-            // Robbers within reach
+            // Robbers within reach (a band more rows off than the reach can't be: the cheap test first)
             for (const h of hostiles) {
                 if (h.destroyed) continue;
                 if (isShip !== (h.type === 'pirate')) continue;
-                if (_dist(world, h.q, h.r, u.q, u.r) > _num(A.raiderRange, 1)) continue;
+                if (Math.abs(h.r - u.r) > raiderRange) continue;
+                if (_dist(world, h.q, h.r, u.q, u.r) > raiderRange) continue;
                 if (MerchantCaravans._ambush(world, player, st, u, { unit: h, strength: _num(h.strength), by: h.name || 'raiders' }, patrols, out, mainRng)) return;
             }
             // An outlaw lair near the road (each lair tries a trader once)

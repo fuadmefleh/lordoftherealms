@@ -21,6 +21,7 @@ import './currents.js';
 import './seaWeather.js';
 import './navySquadrons.js';
 import './deadDisplays.js';
+import './arrivalCamps.js';
 import './warStakes.js';
 import './atmosphere.js';
 

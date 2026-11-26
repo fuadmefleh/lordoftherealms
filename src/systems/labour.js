@@ -39,6 +39,9 @@ import { Fiscal } from './fiscal.js';
 import { Climate } from '../world/climate.js';
 // (who moves and why beyond the welfare, the households, columns and policy: systems/migration.js)
 import { Migration } from './migration.js';
+import { ArrivalCamps } from './arrivalCamps.js';
+// (how the poor get by, and the towns' builders: systems/townPoor.js, world/townHousing.js)
+import { TownPoor } from './townPoor.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -303,13 +306,20 @@ export const Labour = {
                 col: Labour.costOfLiving(s),
                 hands,
             });
+            // The poor buy their bread, or go without (systems/townPoor.js)
+            const pr = TownPoor.turn(world, s, k, day);
+            if (pr.dead >= 5) Labour.record(world, { key: `hunger:${key}:${Math.floor(day / 30)}`, kind: 'hunger', place: s.name, q: s.q, r: s.r, n: pr.dead, kingdomId: s.kingdom || null });
         }
         Labour._refreshHires(world, player);
         const M = TownLabour.config().migration;
         const every = Math.max(1, Math.floor(_num(M.every, 7)));
         if (day % every === 3 % every) Labour._week(world, player, lives, links, dctx, ruled, day, out);
+        // The towns' builders, and word of hunger and overcrowding (systems/townPoor.js)
+        if (day % every === 5 % every) TownPoor.week(world, player, lives, ruled, day, out);
         // The columns on the roads, each town's trend (systems/migration.js)
         Migration.processDay(world, player, out);
+        // Newcomers too many to house at once camp outside the town, and take lots and build (systems/arrivalCamps.js)
+        ArrivalCamps.processDay(world, player, out);
         return out;
     },
 

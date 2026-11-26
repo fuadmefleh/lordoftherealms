@@ -127,11 +127,20 @@ export const LotBook = {
     knownLots(settlement) {
         const book = settlement && settlement.lotBook;
         const known = book && book.known && Array.isArray(book.known.lots) ? book.known.lots : null;
-        if (known && known.length) return known.map(l => ({ id: l.id, w: _num(l.w, 6), h: _num(l.h, 6) }));
         const type = settlement && settlement.type;
         const wR = this.byType('width', type) || [6, 8], dR = this.byType('depth', type) || [5, 6];
         const w = Math.round((_num(wR[0], 6) + _num(wR[1], 6)) / 2), h = Math.round((_num(dR[0], 6) + _num(dR[1], 6)) / 2);
-        return this.lotIds(type).map(id => ({ id, w, h }));
+        const list = known && known.length ? known.map(l => ({ id: l.id, w: _num(l.w, 6), h: _num(l.h, 6) })) : this.lotIds(type).map(id => ({ id, w, h }));
+        // The lots along the streets laid out since for newcomers (world/townGrowth.js; settlement.growth):
+        // those laid after the map was last seen (known.ext of them were on it) are known by their record
+        const streets = settlement && settlement.growth && Array.isArray(settlement.growth.streets) ? settlement.growth.streets : [];
+        const seen = known && known.length ? Math.max(0, _num(book.known.ext, 0)) : 0;
+        const have = new Set(list.map(l => l.id));
+        streets.forEach((st, i) => {
+            if (i < seen) return;
+            for (const id of st.lots || []) if (!have.has(id)) { list.push({ id, w, h }); have.add(id); }
+        });
+        return list;
     },
 
     /** Lots nobody holds: [{ id, w, h, price }]. */

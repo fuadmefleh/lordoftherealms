@@ -2996,6 +2996,204 @@
       "chimneyChance": 0.75
     },
     {
+      "id": "tenement",
+      "name": "Tenement",
+      "buildingType": "tenement",
+      "style": "tenement",
+      "count": 10,
+      "_note": "Three storeys of rooms let floor by floor (world/townHousing.js): what crowded towns raise on their lots.",
+      "widths": [
+        5,
+        6
+      ],
+      "walls": [
+        "timber",
+        "timber_black",
+        "brick_red",
+        "brick_brown",
+        "brick_grey",
+        "stone_grey",
+        "plaster",
+        "stone_beige"
+      ],
+      "stackRows": [
+        9
+      ],
+      "wallRows": [
+        8,
+        9
+      ],
+      "roofs": [
+        "slate",
+        "shingle_grey",
+        "shingle_dark",
+        "clay",
+        "shingle_brown"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "green"
+      ],
+      "windowStyles": [
+        "small",
+        "small_dark",
+        "small_lit"
+      ],
+      "upperWindowStyles": [
+        "small",
+        "small_lit",
+        "small_dark"
+      ],
+      "windowMix": [
+        "small",
+        "small",
+        "small_dark",
+        "small_lit"
+      ],
+      "chimneys": [
+        "grey",
+        "dark",
+        "red",
+        "brown"
+      ],
+      "chimneyChance": 0.9
+    },
+    {
+      "id": "terrace",
+      "name": "Row Houses",
+      "buildingType": "rowhouse",
+      "style": "row",
+      "count": 10,
+      "_note": "A short terrace of houses under one roof, two storeys, rooms above let (world/townHousing.js).",
+      "widths": [
+        6,
+        7
+      ],
+      "walls": [
+        "brick_red",
+        "brick_beige",
+        "brick_brown",
+        "plaster",
+        "stone_beige",
+        "brick_grey",
+        "timber"
+      ],
+      "stackRows": [
+        6
+      ],
+      "wallRows": [
+        5,
+        6
+      ],
+      "roofs": [
+        "clay",
+        "slate",
+        "shingle_grey",
+        "shingle_dark",
+        "shingle_purple"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "windowStyles": [
+        "small",
+        "small_lit"
+      ],
+      "upperWindowStyles": [
+        "small",
+        "small_lit"
+      ],
+      "chimneys": [
+        "red",
+        "grey",
+        "dark",
+        "beige"
+      ],
+      "chimneyChance": 0.85
+    },
+    {
+      "id": "tenement_low",
+      "name": "Tenement",
+      "buildingType": "tenement",
+      "style": "tenement",
+      "count": 10,
+      "_note": "A lower tenement (seven rows of wall: rooms over a shop floor) for a lot boxed in behind (world/innerMap/lots.js tries the tallest that fits).",
+      "widths": [
+        5,
+        6
+      ],
+      "walls": [
+        "brick_red",
+        "brick_brown",
+        "brick_grey",
+        "brick_dark",
+        "stone_grey",
+        "plaster",
+        "stone_beige",
+        "plaster_ochre"
+      ],
+      "wallRows": [
+        7
+      ],
+      "roofs": [
+        "slate",
+        "shingle_grey",
+        "shingle_dark",
+        "clay",
+        "shingle_brown"
+      ],
+      "roofRows": [
+        2
+      ],
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "green"
+      ],
+      "windowStyles": [
+        "small",
+        "small_dark",
+        "small_lit"
+      ],
+      "upperWindowStyles": [
+        "small",
+        "small_lit",
+        "small_dark"
+      ],
+      "windowMix": [
+        "small",
+        "small",
+        "small_dark",
+        "small_lit"
+      ],
+      "chimneys": [
+        "grey",
+        "dark",
+        "red",
+        "brown"
+      ],
+      "chimneyChance": 0.9
+    },
+    {
       "id": "townhouse",
       "name": "Townhouse",
       "buildingType": "house",

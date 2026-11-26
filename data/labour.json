@@ -54,7 +54,9 @@
 
     "_welfare": "Each stratum's welfare (0..1; about 0.87 is the ordinary lot of a town at peace with full stalls): weights x the share of its basket the market met (market.met: food, drink, fuel, clothes, luxury, tools; a want the market doesn't stock counts as missing), its work (1 - idle; the clergy and nobles take the town's), its real wage (0.5 + (wage / base wage / cost of living - 1) x 1.25; the clergy and nobles take the town's), safety (1 - danger) and the famine gauge; less taxes in a town the player rules ((rate - 0.15) x taxWeight[stratum]).",
     "welfare": {
-        "weights": { "basket": 0.3, "work": 0.25, "wage": 0.2, "safety": 0.25, "famine": 0.35 },
+        "weights": { "basket": 0.3, "work": 0.25, "wage": 0.2, "safety": 0.25, "famine": 0.35, "hunger": 0.8 },
+        "_crowdWeight": "How much each class feels the town's overcrowding (world/townHousing.js welfarePenalty × this): the poor in their rooms most, the nobles in their halls least.",
+        "crowdWeight": { "peasants": 1, "artisans": 0.8, "merchants": 0.5, "clergy": 0.3, "nobles": 0.2 },
         "groups": {
             "peasants":  { "food": 0.6, "fuel": 0.2, "drink": 0.1, "clothes": 0.1 },
             "artisans":  { "food": 0.45, "fuel": 0.15, "drink": 0.15, "clothes": 0.15, "tools": 0.1 },

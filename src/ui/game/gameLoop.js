@@ -8,6 +8,7 @@ import { Afterlife } from '../../player/afterlife.js';
 import { Parentage } from '../../player/parentage.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
+import { InnerMapGroundGoods } from '../innerMapGroundGoods.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
 import { InnerMapCarts } from '../innerMapCarts.js';
 import { InnerMapHitch } from '../innerMapHitch.js';
@@ -222,7 +223,8 @@ export function gameLoop(timestamp, loopId) {
         if (!InnerMapBattle.active) InnerMapRoadWalk.update(this);
         // Update player walking animation
         const preQ = InnerMap.playerInnerQ, preR = InnerMap.playerInnerR;
-        const playerStepResult = InnerMap.updatePlayer(simDelta);
+        // (held while the day turns across frames at midnight: ui/game/dayTurn.js)
+        const playerStepResult = this._dayTurning ? null : InnerMap.updatePlayer(simDelta);
         // A stroke through the water: tiredness, the cold, a wash, going under
         if (InnerMap.playerInnerQ !== preQ || InnerMap.playerInnerR !== preR) {
             _swimStep(this);
@@ -419,6 +421,16 @@ export function gameLoop(timestamp, loopId) {
                     if (res.success) { cargo = res.cargo; lost = res.ship; }
                 }
                 const pieces = InnerMap.scatterWreck(w, { cargo });
+                // ...kept by the world, not the street map: they last past its redrawing, and others may haul them in
+                // (a strongbox is the swimmer's alone, and sinks in time: ui/innerMapGroundGoods.js lay, systems/groundGoods.js)
+                for (const p of pieces) {
+                    const t = InnerMap.getTile(p.q, p.r);
+                    const gi = t && t.groundItem;
+                    if (!gi || gi.pileId) continue;
+                    const label = String(gi.name || '').replace(/ ×\d+$/, '');
+                    delete t.groundItem;
+                    if (!InnerMapGroundGoods.lay(this, t, gi.itemId, gi.quantity || 1, { kind: 'salvage', by: 'wreck', byName: (w.object && w.object.label) || 'a wreck', src: 'salvage', label, icon: gi.icon, salvage: gi.salvage, gold: gi.gold || 0 })) t.groundItem = gi;
+                }
                 const name = lost ? `the ${lost.name}` : (w.object && w.object.label) || 'the ship';
                 this.ui.showNotification(lost ? '⚓ Your Ship Is Lost' : '💥 Wrecked',
                     `${name.charAt(0).toUpperCase()}${name.slice(1)} breaks up.${pieces.length ? ` ${pieces.length} pieces of wreckage float free — swim out and haul them in.` : ''}`,
@@ -536,6 +548,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapOverheard.update(simDelta, this);
         // Digging, filling in, burying (ui/innerMapDigging.js)
         InnerMapDigging.update(simDelta, this);
+        // Goods on the ground as the world keeps them, and the finders who come for them (ui/innerMapGroundGoods.js)
+        InnerMapGroundGoods.update(simDelta, this);
         // Someone senseless over your shoulder: through doors with you, waking, laid down (ui/innerMapCarry.js)
         InnerMapCarry.update(simDelta, this);
         // Handcarts and wagons: carters, the death cart, a caravan loading, the player's own (ui/innerMapCarts.js)
@@ -646,8 +660,9 @@ export function gameLoop(timestamp, loopId) {
     // Standing cheats (infinite movement, god mode) hold every frame
     if (this._cheats) this.ui.applyCheats();
 
-    // Update player movement
-    if (this.player.isMoving) {
+    // Update player movement (not while the day is turning across frames: the journey
+    // resumed in the morning sets off once the day is done, ui/game/dayTurn.js)
+    if (this.player.isMoving && !this._dayTurning) {
         const moved = this.player.stepAlongPath(this.world, deltaTime);
         // Turned back at a town's gate shut against the plague (player/core/movement.js; ui/innerMapPlague.js)
         if (this.player.turnedAway) InnerMapPlague.turnedAway(this);

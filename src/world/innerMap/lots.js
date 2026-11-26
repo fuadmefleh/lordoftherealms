@@ -25,6 +25,8 @@ function _hash(q, r, salt) {
     return (h ^ (h >>> 16)) >>> 0;
 }
 
+const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
 function _strHash(s) {
     let h = 2166136261;
     for (let i = 0; i < String(s).length; i++) h = Math.imul(h ^ String(s).charCodeAt(i), 16777619);
@@ -83,10 +85,36 @@ Object.assign(InnerMap, {
         for (const lot of this.townLots()) {
             const rec = book.lots[lot.id];
             const b = rec && rec.built;
+            // A newcomer's house going up (systems/arrivalCamps.js): a building site, course by course, till its day
+            // (waiting on its timber: the bare lot)
+            if (b && b.kind === 'settler') {
+                if (b.wait || b.readyDay == null) continue;
+                const span = Math.max(1, _num(b.readyDay) - _num(b.start, _num(b.readyDay) - 1));
+                const p = day >= b.readyDay ? null : Math.max(0.02, Math.min(0.99, (day - _num(b.start, day)) / span));
+                const at = this._lotAnchor(lot);
+                if (at) {
+                    const cb = this.tiles[at.r][at.q].customBuilding;
+                    if (p == null) delete cb.siteP; else cb.siteP = p;
+                    continue;
+                }
+                if (this._lotHasBuilding(lot)) continue;
+                const put = this._standOnLot(lot, 'house', _strHash(`${settlement.foundingName || settlement.name}|${lot.id}|house`), settlement);
+                if (put && p != null) this.tiles[put.r][put.q].customBuilding.siteP = p;
+                continue;
+            }
             // (a property the player built stands as that property; a house they raised to let stands like the AI's)
             if (!b || (b.by === 'player' && b.kind !== 'house') || (b.readyDay != null && day < b.readyDay)) continue;
             if (this._lotHasBuilding(lot)) continue;
-            this._standOnLot(lot, b.type || 'house', _strHash(`${settlement.foundingName || settlement.name}|${lot.id}|${b.type}`), settlement);
+            // (a tenement or row houses rise taller than the lot is deep: they may reach back
+            // onto the open ground behind it — world/townHousing.js, data/townHousing.json)
+            const tall = b.type === 'tenement' || b.type === 'rowhouse';
+            const seed = _strHash(`${settlement.foundingName || settlement.name}|${lot.id}|${b.type}`);
+            // (no room behind it for a tenement's storeys: row houses, then a house)
+            if (tall && this._standOnLot(lot, b.type, seed, settlement, { overhang: 7, exact: true })) continue;
+            if (b.type === 'tenement' && this._standOnLot(lot, 'rowhouse', seed, settlement, { overhang: 5, exact: true })) continue;
+            // (...else the plainest town house that fits, not the culture's hut: it is a house of rooms)
+            if (tall && this._standOnLot(lot, 'house', seed, settlement, { common: true })) continue;
+            this._standOnLot(lot, b.type || 'house', seed, settlement);
         }
     },
 
@@ -109,7 +137,7 @@ Object.assign(InnerMap, {
         // own designs first, in the tier the town's wealth allows today (world/settlementWealth.js):
         // a house put up now is built as the town now is, whatever its older houses are
         const tb = this.tiles && this.tiles._townBuild;
-        const own = tb && tb.culture && settlement && typeof CustomBuildings.getByCulture === 'function'
+        const own = !opts.common && tb && tb.culture && settlement && typeof CustomBuildings.getByCulture === 'function'
             ? [...CustomBuildings.getByCulture(tb.culture, type), ...(noHouse ? [] : CustomBuildings.getByCulture(tb.culture, 'house'))] : [];
         let tier = own.length ? SettlementWealth.buildingTier(SettlementWealth.score(settlement), { ring: 'mid', key: `lot:${lot.id}` }) : null;
         // (in its era's style: no grander than the age's builders raise, world/townEras.js)
@@ -118,7 +146,9 @@ Object.assign(InnerMap, {
         const usable = arr => arr.filter(d => d && d.meta && d.bounds && d.style !== 'farmstead');
         const turn = arr => arr.map((_, i) => arr[(seed + i) % arr.length]);
         const ownDefs = usable(own.map(d => CustomBuildings.tierVariant(d, tier)));
-        const common = usable((CustomBuildings.getByType(type) || []).concat(noHouse ? [] : CustomBuildings.getByType('house') || []));
+        const common = usable((CustomBuildings.getByType(type) || []).concat(noHouse ? [] : CustomBuildings.getByType('house') || []))
+            // (opts.common: the kit's own town houses only, no culture's hut or hovel)
+            .filter(d => !opts.common || (!d.culture && d.style !== 'hovel' && d.style !== 'croft'));
         // (the culture's own first, each list turned by the lot's seed)
         const defs = [...turn(ownDefs), ...turn(common)];
         if (!defs.length) return false;
@@ -322,6 +352,8 @@ Object.assign(InnerMap, {
         LotBook.of(settlement).known = {
             lots: this.townLots().map(l => ({ id: l.id, w: l.w, h: l.h })),
             vacancies: houses.slice(0, n).map(b => b._vacancy),
+            // (how many of its new streets the map had laid: world/townGrowth.js)
+            ext: settlement.growth && Array.isArray(settlement.growth.streets) ? settlement.growth.streets.length : 0,
         };
     },
 

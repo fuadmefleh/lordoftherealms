@@ -11,6 +11,7 @@ import { Migration } from '../../systems/migration.js';
 import { Taxation } from '../../systems/marketDynamics.js';
 import { CARD, rowList, sectionHead, lede, chips, esc } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
+import { campCardHtml } from './arrivalCamp.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -36,6 +37,11 @@ function logLine(e) {
 
 /** The town's comings and goings: its trend, the year's arrivals and departures and why, recent moves, its houses. */
 export function migrationHtml(game, settlement) {
+    // (and the newcomers camped outside with nowhere to live: ui/actionMenu/arrivalCamp.js)
+    return _comingsHtml(game, settlement) + (settlement ? campCardHtml(game, settlement, settlement.q, settlement.r) : '');
+}
+
+function _comingsHtml(game, settlement) {
     const world = game && game.world;
     const t = Migration.trend(settlement, world ? world.day : null);
     if (!t) return '';

@@ -5,6 +5,9 @@ import { Names } from '../../core/names.js';
 import { Economy } from '../economy.js';
 import { MoneySupply } from '../moneySupply.js';
 
+/** World units moved per step of the day run in steps (processUnitsSteps). */
+const UNITS_PER_STEP = 24;
+
 Object.assign(World.prototype, {
     /**
      * Get tile at wrapped coordinates
@@ -32,12 +35,25 @@ Object.assign(World.prototype, {
      *   import the tech system)
      */
     advanceDay(player = null, opts = {}) {
+        const steps = this.advanceDaySteps(player, opts);
+        let r = steps.next();
+        while (!r.done) r = steps.next();
+        return r.value;
+    },
+
+    /**
+     * advanceDay as a generator of steps (a `yield` between the realms' turns and
+     * the systems): driven to the end at once by advanceDay, or a few milliseconds
+     * a frame by the browser's day turn (ui/game/dayTurn.js). The same steps in the
+     * same order either way.
+     */
+    *advanceDaySteps(player = null, opts = {}) {
         // Every system below scans the world's settlements; share one scan
         // (and the per-day memos) for the whole day
         this._settlementCache = { positions: null };
         this._dayMemo = new Map();
         try {
-            return this._advanceDay(player, opts);
+            return yield* this._advanceDaySteps(player, opts);
         } finally {
             // (a caller holding the scan keeps it for the rest of its day turn)
             if (!(this._scanHolds > 0)) this._settlementCache = null;
@@ -85,7 +101,15 @@ Object.assign(World.prototype, {
         return value;
     },
 
+    /** The day's world turn at once (advanceDay without the per-day caches). */
     _advanceDay(player, opts) {
+        const steps = this._advanceDaySteps(player, opts);
+        let r = steps.next();
+        while (!r.done) r = steps.next();
+        return r.value;
+    },
+
+    *_advanceDaySteps(player, opts) {
         this.day++;
 
         // Season tracking (30 days per season)
@@ -110,6 +134,7 @@ Object.assign(World.prototype, {
                 NPCLords.processLordActions(kingdom, this);
             }
         }
+        yield;
 
         // Process kingdom AI turns
         // (the distant years, player/afterlife.js: each realm's turn once every realmEvery
@@ -123,21 +148,26 @@ Object.assign(World.prototype, {
             } else {
                 KingdomAI.processTurn(kingdom, this, opts.playerBonuses || {});
             }
+            yield;
         }
 
         // Process character system (dynasties, advisors, succession, marriages)
         if (typeof Characters !== 'undefined') {
             Characters.processTurn(this);
         }
+        yield;
 
         // Process wars
         KingdomAI.processWars(this);
+        yield;
         // Fallen realms may rise again in their old towns
         KingdomAI.processRestorations(this);
+        yield;
 
         // Generate world events
         const worldEvents = WorldEvents.generateEvents(this);
         this.events.push(...worldEvents);
+        yield;
 
         // Timed events (droughts, plagues, gold rushes, ...)
         const timed = WorldEvents.processTimedEvents(this);
@@ -147,31 +177,39 @@ Object.assign(World.prototype, {
         for (const ev of timed.ended) {
             this.events.push({ text: `${ev.icon} ${ev.name} in ${ev.regionName} has passed.`, type: 'timed' });
         }
+        yield;
 
         // Process world religion (pilgrim income, heresies, holy site contestation)
         if (typeof Religion !== 'undefined') {
             Religion.processTurn(this);
         }
+        yield;
 
         // Process cultural events & influence
         if (typeof Culture !== 'undefined') {
             Culture.processTurn(this);
         }
+        yield;
 
         // Process multicultural peoples dynamics
         if (typeof Peoples !== 'undefined') {
             Peoples.processTurn(this);
         }
+        yield;
 
         // Process colonization (colony loyalty, indigenous, AI expansion)
         if (typeof Colonization !== 'undefined') {
-            Colonization.processTurn(this, opts.playerBonuses || {}, player);
+            // (a realm's colonies a step: Colonization.processTurnSteps)
+            if (typeof Colonization.processTurnSteps === 'function') yield* Colonization.processTurnSteps(this, opts.playerBonuses || {}, player);
+            else Colonization.processTurn(this, opts.playerBonuses || {}, player);
         }
+        yield;
 
         // Process cartography (propaganda maps, kingdom cartography)
         if (typeof Cartography !== 'undefined') {
             Cartography.processTurn(this);
         }
+        yield;
 
         // Market stocks are real inventories now, restocked by what each town
         // produces and trades (world/settlementMarket.js, ticked daily by
@@ -187,9 +225,11 @@ Object.assign(World.prototype, {
 
         // The Dawn of Man: clans settle, villages rise, chiefdoms form (world/dawn.js)
         Dawn.processDay(this, player);
+        yield;
 
         // Process units (player injected so raiders can target them without a global)
-        this.processUnits(player);
+        yield* this.processUnitsSteps(player);
+        yield;
 
         // In a world begun before coin, coin comes when barter breaks down (world/barter.js)
         Barter.processDay(this);
@@ -341,9 +381,17 @@ Object.assign(World.prototype, {
      * Process all world units
      */
     processUnits(player = null) {
+        const steps = this.processUnitsSteps(player);
+        let r = steps.next();
+        while (!r.done) r = steps.next();
+    },
+
+    /** processUnits as steps, a few dozen units a step (advanceDaySteps). */
+    *processUnitsSteps(player = null) {
         if (!this.units) this.units = [];
 
         // Move units
+        let moved = 0;
         for (let i = this.units.length - 1; i >= 0; i--) {
             const unit = this.units[i];
             if (unit._rolledGold != null) this.fundUnitCoin(unit);
@@ -352,7 +400,9 @@ Object.assign(World.prototype, {
                 this.settleUnitCoin(unit);
                 this.units.splice(i, 1);
             }
+            if (++moved % UNITS_PER_STEP === 0) yield;
         }
+        yield;
 
         // Spawn new units if needed
         this.spawnUnits();

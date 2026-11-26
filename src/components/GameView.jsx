@@ -4,6 +4,8 @@ import TopBar from './TopBar';
 import Icon from './Icon';
 import { Game } from '../ui/game';
 import { DataLoader } from '../core/dataLoader';
+import { InnerMap } from '../world/innerMap';
+import { ArrivalCamps } from '../systems/arrivalCamps';
 
 // Persist game instance at module level so Vite HMR doesn't lose it.
 // React Fast Refresh re-runs all effect cleanups (even [] deps) during HMR,
@@ -60,6 +62,11 @@ export default function GameView() {
         // Initialize all game data first
         await DataLoader.initializeAll();
         if (cancelled) return;
+        // A new street for a newcomers' camp is surveyed on the town's street map before
+        // the town grants its lots (systems/arrivalCamps.js)
+        // (until the town designs are loaded — the first visit to a street map — a street is kept
+        // whole and fitted to its map the first time that is laid: TownGrowth.settleUnsurveyed)
+        ArrivalCamps.setSurveyor((world, q, r) => InnerMap.surveyGrowth(world, q, r));
 
         // Create the Game instance in React mode, passing the canvas directly
         const game = new Game({ canvas: canvasRef.current, reactMode: true });
@@ -75,6 +82,9 @@ export default function GameView() {
 
         // Bridge: let the Game push stats back into React
         game._reactBridge = { updatePlayerStats, updateTurn, setPhase };
+        // The day's end runs a few milliseconds a frame here, so the map keeps drawing
+        // while the world turns (ui/game/dayTurn.js); tests and the harness run it at once
+        game.sliceDayEnd = true;
 
         if (customWorldData) {
           // Start with custom world from editor

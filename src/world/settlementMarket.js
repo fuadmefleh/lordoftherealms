@@ -1585,10 +1585,24 @@ export const SettlementMarket = {
         // share of the town's eating, not the market's: systems/townTrade.js books it on market.named)
         const named = m.named;
         if (named) delete m.named;
+        // (what the town's poor cannot pay for goes unbought — clothes, then fuel, then bread:
+        // settlement.poor.cut, systems/townPoor.js — and stays on the stalls)
+        const pcut = settlement.poor && settlement.poor.cut;
+        let cutA = null;
+        if (pcut) {
+            cutA = B.cutA && B.cutA.length === n ? B.cutA : (B.cutA = new Float64Array(n));
+            cutA.fill(0);
+            for (const grp of ['food', 'fuel', 'clothes']) {
+                const v = _num(pcut[grp]);
+                const gi = v > 0 ? C.groupIdx[grp] : null;
+                if (gi) for (let j = 0; j < gi.length; j++) cutA[gi[j]] = Math.min(0.9, v);
+            }
+        }
         for (let i = 0; i < n; i++) {
             let need = needOf[i];
             if (!(need > 0)) continue;
             need *= k;
+            if (cutA && cutA[i] > 0) need *= 1 - cutA[i];
             if (ctx.cold) need *= A.cold[i];
             if (dated && A.produce[i]) need *= A.demSeason[i * 4 + six];
             needs[i] = need;

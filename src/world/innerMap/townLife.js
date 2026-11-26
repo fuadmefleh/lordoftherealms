@@ -328,7 +328,15 @@ Object.assign(InnerMap, {
         const C = this.townLifeConfig();
         const blds = this._townBuildings().filter(b => !b.isPlayerOwned);
         // Vacant houses stand empty (world/innerMap/lots.js)
-        const houses = blds.filter(b => b.type === 'house' && !b._vacant);
+        // (a tenement houses several households, a row of houses two — each on a floor of its own:
+        // world/innerMap/floors.js npcFloor, npc._homeSlot; data/townHousing.json)
+        const HOUSEHOLDS = { tenement: 4, rowhouse: 2 };
+        const houses = [];
+        for (const b of blds) {
+            if (b._vacant || !(b.type === 'house' || HOUSEHOLDS[b.type])) continue;
+            for (let i = 0; i < (HOUSEHOLDS[b.type] || 1); i++) houses.push(b);
+        }
+        const slots = new Map();
         const lodgings = blds.filter(b => (C.lodgings || []).includes(b.type));
         const byType = {};
         for (const b of blds) (byType[b.type] = byType[b.type] || []).push(b);
@@ -369,9 +377,24 @@ Object.assign(InnerMap, {
             if (npc._home) continue;
             const kin = [npc.spouseId, ...(npc.parentIds || [])].map(i => byId.get(i)).find(k => k && k._home && k._home.type === 'house' && (npc._hh == null || k._hh == null || k._hh === npc._hh));
             const key = npc.familyGroupId != null ? `f${npc.familyGroupId}` : null;
-            npc._home = (kin && kin._home) || (key && famHome.get(key)) || (houses.length ? houses[next++ % houses.length] : null);
+            const kinHome = (kin && kin._home) || (key && famHome.get(key)) || null;
+            npc._home = kinHome || (houses.length ? houses[next++ % houses.length] : null);
             if (key && npc._home && !famHome.has(key)) famHome.set(key, npc._home);
+            // (which household of a shared house: its floor)
+            if (npc._home && npc._home.type !== 'house') {
+                const kinSlot = kin && kin._home === npc._home ? kin._homeSlot : null;
+                const fk = key || `n${npc.id}`;
+                if (kinSlot != null) npc._homeSlot = kinSlot;
+                else {
+                    const m = slots.get(npc._home) || new Map();
+                    if (!m.has(fk)) m.set(fk, m.size);
+                    slots.set(npc._home, m);
+                    npc._homeSlot = m.get(fk);
+                }
+            } else npc._homeSlot = null;
         }
+        // Newcomers under canvas sleep in the camp's tents; those whose house is built, in it (world/innerMap/arrivalCamp.js)
+        if (this._campHomes) this._campHomes();
     },
 
     // ──────────── THE HOUR'S BUSINESS ────────────
@@ -433,6 +456,8 @@ Object.assign(InnerMap, {
         if (this._scenePick && this._scenePick(npc, period)) return true;
         // A producer's sack to market of a morning, a hawker's or a pedlar's round, a neighbour to swap with (world/innerMap/townTrading.js)
         if (this._tradePick && this._tradePick(npc, period)) return true;
+        // A camper's spell about the newcomers' camp: by the fire, at the washing line (world/innerMap/arrivalCamp.js)
+        if (this._campPick && this._campPick(npc, period)) return true;
         // (the hours of their own trade, meals and bed: world/innerMap/townWork.js)
         const table = (this._jobSchedule && this._jobSchedule(npc)) || C.schedule[npc.type] || C.schedule.default || DEFAULTS.schedule.default;
         const act = _weighted(table[period] || table.morning, rnd) || 'stroll';
@@ -735,6 +760,7 @@ Object.assign(InnerMap, {
         if (act === 'field') this._startFieldWork(npc);
         if (act === 'chop' && this._startChopping) this._startChopping(npc);
         if (act === 'forage' && this._startForaging) this._startForaging(npc);
+        if (act === 'camp' && this._campArrived) this._campArrived(npc);
         // At the stall, the crier's spot, the anvil, the well (world/innerMap/townScenes.js)
         if (this._sceneArrived) this._sceneArrived(npc, act);
         // The stall's real sale, a hawker's cry, a swap (world/innerMap/townTrading.js)

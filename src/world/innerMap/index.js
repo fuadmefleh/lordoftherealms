@@ -53,6 +53,8 @@ import './hospitality.js';
 // The let rooms of an inn behind their locked doors (systems/roomLocks.js)
 import './guestRooms.js';
 import './camp.js';
+// The newcomers' camp on a town's outskirts, and its people (systems/arrivalCamps.js)
+import './arrivalCamp.js';
 import './harbour.js';
 import './deckLife.js';
 import './belowDecks.js';

@@ -6,6 +6,7 @@ const SEASON_ICON = { Spring: '🌱', Summer: '☀️', Autumn: '🍂', Fall: '�
 
 let el = null;
 let hideTimer = 0;
+let showSeq = 0;
 
 function ensure() {
     if (el && document.body.contains(el)) return el;
@@ -43,11 +44,15 @@ export function showDayBanner({ dayOfSeason, season, year, kind = 'day' }) {
     }
 
     b.className = `kind-${kind}`;
-    // Restart the animation even when a banner is already up
+    // Restart the animation even when a banner is already up: shown again two frames on, once
+    // the style without it has been drawn (reading offsetWidth here forced a layout of the whole
+    // page at every day's end)
     b.classList.remove('show');
-    void b.offsetWidth;
-    b.classList.add('show');
+    const seq = ++showSeq;
+    const show = () => { if (seq === showSeq) b.classList.add('show'); };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(show));
+    else show();
 
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => b.classList.remove('show'), kind === 'day' ? 1900 : 3400);
+    hideTimer = setTimeout(() => { if (seq === showSeq) b.classList.remove('show'); }, kind === 'day' ? 1900 : 3400);
 }

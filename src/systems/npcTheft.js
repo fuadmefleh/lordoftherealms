@@ -65,6 +65,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { TownGrowth } from '../world/townGrowth.js';
 import { Townsfolk } from './townsfolk.js';
 import { StreetCrime } from './streetCrime.js';
 import { OutlawLairs } from './outlawLairs.js';
@@ -422,6 +423,8 @@ export const NpcTheft = {
         // (and the dead on show at the gate and the crossroads: systems/gibbets.js)
         p *= Gibbets.deterrence(s, day);
         p *= PenalLabour.deterrence(world, s, day);
+        // (a newcomers' camp outside: more hungry hands about the town — world/townGrowth.js)
+        p *= TownGrowth.campTheftMult(s);
         p /= 1 + Math.max(0, st.heat - _num(C.pickpocket.crackdownAt, 6)) * 0.1;
         if (_frac(key) >= p) return null;
         const when = _frac(`${key}|when`) < _num(B.nightShare, 0.7) ? 'night' : 'day';
@@ -1024,7 +1027,7 @@ export const NpcTheft = {
         const st = NpcTheft.state(s);
         if (st.pickDay === day) return null;
         const key = `${_seed(world)}|pick|${s.q},${s.r}|${day}`;
-        const p = _byType(C.pickpocket.perDay, s.type) * NpcTheft.watchFactor(s) * Gibbets.deterrence(s, day);
+        const p = _byType(C.pickpocket.perDay, s.type) * NpcTheft.watchFactor(s) * Gibbets.deterrence(s, day) * TownGrowth.campTheftMult(s);
         if (_frac(key) >= p) return null;
         const thief = NpcTheft._townThief(world, s, day, key, new Set(), { urchins: true });
         if (!thief) return null;

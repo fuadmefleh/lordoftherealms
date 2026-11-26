@@ -32,6 +32,7 @@ import { DawnBirth } from '../dawnBirth.js';
 import { Names } from '../../core/names.js';
 import { RiverBoats } from '../../systems/riverBoats.js';
 import { RiverLife } from '../../systems/riverLife.js';
+import { GroundGoods } from '../../systems/groundGoods.js';
 import { Utils } from '../../core/utils.js';
 import { Executions } from '../../systems/executions.js';
 import { Gibbets } from '../../systems/gibbets.js';
@@ -63,6 +64,17 @@ export function addWildernessActions(actions, player, tile, world) {
         actions.push(player.dawnInStep
             ? { type: 'dawn_instep', label: 'Let the clan go at its own pace', icon: '🐾', description: 'Your people stop matching your stride: they follow behind, two hexes a day, within a few leagues of you.' }
             : { type: 'dawn_instep', label: 'Keep the clan in step', icon: '👣', description: near ? 'Your people walk with you, hex for hex, wherever they can follow on foot.' : 'Your people are not beside you: they will fall in step when you are next to them.' });
+    }
+
+    // Saw planks by hand on trestles wherever you stand, with wood in the packs (the
+    // crafting window's sawing recipes: data/crafting.json `field: true`, Carpentry)
+    if (tile.terrain.passable && Math.floor((player.inventory && player.inventory.wood) || 0) >= 2) {
+        actions.push({
+            type: 'saw_planks',
+            label: 'Saw Planks',
+            icon: '🌲',
+            description: 'Rip your logs into boards on a pair of trestles (2 wood make 3 planks; tools in your pack help)',
+        });
     }
 
     // Meditate / Pray (anywhere on passable terrain)
@@ -129,6 +141,21 @@ export function addWildernessActions(actions, player, tile, world) {
                 icon: boat ? '🛶' : '🎣',
                 description: (flood ? 'The river is in flood! ' : '') + bits.join(' · '),
                 notice: flood ? 'In flood' : null,
+            });
+        }
+    }
+
+    // Goods left lying on this hex: yours set down at the roadside, or others' abandoned (systems/groundGoods.js)
+    {
+        const piles = GroundGoods.at(world, tile.q, tile.r);
+        if (piles.length) {
+            const mine = piles.filter(p => p.by === 'player').length;
+            const units = piles.reduce((a, p) => a + p.qty, 0);
+            actions.push({
+                type: 'ground_goods',
+                label: 'Goods Left Here',
+                icon: '🧺',
+                description: `${piles.length} pile${piles.length === 1 ? '' : 's'} on the ground (${units} thing${units === 1 ? '' : 's'})${mine ? `, ${mine} of them yours` : ''}: pick up`,
             });
         }
     }

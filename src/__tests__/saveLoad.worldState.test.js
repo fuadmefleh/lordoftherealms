@@ -15,6 +15,7 @@ import { Delves } from '../systems/delves.js';
 import { Relationships } from '../systems/relationships.js';
 import { Espionage } from '../systems/espionage.js';
 import { Cartography } from '../systems/cartography.js';
+import { GroundGoods } from '../systems/groundGoods.js';
 import { loadData, newGame, endDay, roundTrip } from './playtest/harness.js';
 
 let logSpy;
@@ -115,6 +116,16 @@ describe('save/load keeps world state', () => {
         live[0].destroyed = true;
         const out = Delves.processDay(game.world, game.player);
         expect(out.slain).toContain('The Warden');
+    });
+
+    it('goods left on the ground survive a load, where they were set down', () => {
+        let game = newGame(4242);
+        const p = game.player;
+        p.inventory.bread = 9;
+        expect(GroundGoods.drop(game.world, p, 'bread', 6, { q: p.q, r: p.r, spot: { q: 12, r: 14 } }).ok).toBe(true);
+        game = roundTrip(game);
+        expect(GroundGoods.at(game.world, p.q, p.r)[0]).toMatchObject({ good: 'bread', qty: 6, by: 'player', spot: { q: 12, r: 14 } });
+        expect(game.player.inventory.bread).toBe(3);
     });
 
     it('settlement markets and the id counter survive a load', () => {

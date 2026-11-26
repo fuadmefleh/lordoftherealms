@@ -8,6 +8,7 @@ import { Parentage } from '../../player/parentage.js';
 import { Court } from '../../systems/court.js';
 import { MoneySupply } from '../../world/moneySupply.js';
 import { CoinCensus } from '../../systems/coinCensus.js';
+import { GroundGoods } from '../../systems/groundGoods.js';
 import { Barter } from '../../world/barter.js';
 import { MetaLegacy } from '../../systems/metaLegacy.js';
 import { Utils } from '../../core/utils.js';
@@ -96,6 +97,7 @@ Object.assign(UI.prototype, {
                     ${btn('cheatSkipDays', '⏩ Skip 7 days', [7])}
                     ${btn('cheatSkipDays', '⏩ Skip 30 days', [30])}
                 </div>
+                ${this.game.world ? `<p class="cheat-note" title="The ground store's goods ledger (systems/groundGoods.js ledger)">🧺 Ground goods: ${GroundGoods.ledgerLine(this.game.world)}</p>` : ''}
 
                 <h4>Family &amp; Court</h4>
                 <div class="cheat-row">

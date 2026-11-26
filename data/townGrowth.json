@@ -1,0 +1,56 @@
+{
+    "_doc": "When many newcomers reach a town at once (world/townGrowth.js, systems/arrivalCamps.js). Arrivals (migrant columns, the week's settlers, refugees, the player's paid colonists) are noted on the town (settlement.growth.arr) and summed over windowDays. When the sum, less the room its empty houses still hold (migr.vac of its people), reaches share x its people (at least minPeople, at most maxPeople), they pitch a camp on the outskirts: tents, fires, wagons and washing lines, a few beasts, the newcomers' households living there. Every week up to lotsPerWeek[type] lots are taken (twice as many while the player pays for their homes) - the town's free lots first, and when none are left it lays out a new street at its edge on the side with most room (north or south across the road out, east or west along it; lotsPerStreet lots, up to maxStreets[type]; named from streetNames), or, hemmed in, plots among its yards - the street surveyed on the town's map first, so no lot is granted that the map cannot show; no room at all, none is tried again for noRoomDays. A house is put up on each: its materials (house[type]) from what was given to the camp, then the town's market stock, paid for out of the campers' own purses (then the player's fund) at the market price, the town giving what they cannot pay; no materials in stock, the work waits. They build it with their own hands over buildDays[type], or hire the town's builders when they can pay (hire). Each lot houses perLot[type] of them; the roster's households take the last lots. Where no lot can be found, the last of them crowd into the town's houses after crowdDays. When everyone has a roof the camp is struck, and its trodden ground grows back over fadeDays. tentPeople: people to a tent on the map for a town that keeps no roster (a roster town shows a tent to each of its camp households), at most maxTents.",
+    "enabled": true,
+    "windowDays": 7,
+    "share": 0.08,
+    "minPeople": 15,
+    "maxPeople": 60,
+    "perLot": { "village": 8, "town": 10, "city": 12, "capital": 14 },
+    "lotsPerWeek": { "village": 2, "town": 2, "city": 3, "capital": 3 },
+    "buildDays": { "village": 24, "town": 28, "city": 32, "capital": 36 },
+    "house": {
+        "village": { "wood": 4, "planks": 4 },
+        "town": { "planks": 6, "stone": 2 },
+        "city": { "planks": 6, "stone": 4 },
+        "capital": { "planks": 6, "stone": 5 }
+    },
+    "lotsPerStreet": 6,
+    "maxStreets": { "village": 6, "town": 4, "city": 2, "capital": 0 },
+    "noRoomDays": 90,
+    "crowdDays": 45,
+    "fadeDays": 40,
+    "tentPeople": 5,
+    "maxTents": 14,
+    "streetNames": ["Settlers' Lane", "New Row", "Wagon Lane", "Far Street", "Tenter Lane", "Newcomers' Way", "Long Acre", "Fieldgate", "Pound Lane", "Orchard Row", "Bridle Lane", "Cart Row", "Hearth Lane", "Furlong Street", "Green Lane", "Wheelwright Row"],
+    "hire": {
+        "_doc": "The town's builders hired for a settler's house (systems/arrivalCamps.js _hire): a crew of crew hands of these trades from the town's roster (free of other hire), wage gold a day each paid into their own purses (a town with no roster: into its purse), taken from their own work until it stands. The house then stands in speed x buildDays. A household hires them when its purses hold the wages beyond keepPerHead gold a head; else the player's fund pays (Build them homes); else they build it themselves.",
+        "trades": ["carpenter", "mason", "labourer"],
+        "crew": 2,
+        "wage": { "village": 1.2, "town": 1.6, "city": 2, "capital": 2.4 },
+        "speed": 0.5,
+        "keepPerHead": 3
+    },
+    "effects": {
+        "_doc": "What a standing camp does to its town (world/townGrowth.js campRisk / campCrime / campTheftMult; systems/arrivalCamps.js _mood). sick: a camper's chance of falling ill x camper (x water more for sicknesses that come in the water), x fed while they eat what was given them; everyone else in the town x 1 + the camp's share of the town x townPer (at most townMax) - read by systems/illness.js risk, the plague among them. crime: the town's crime (world/townLabour.js) + the camp's share x perShare (at most max); its burglaries and cutpurses x 1 + share x theft (at most theftMax) (systems/npcTheft.js); both x hungry while they have no food given. mood: a camp of at least bigShare of the town standing afterDays sours the town's mood toward -min(max, share x perShare), step a day; given back as it shrinks and when it is struck.",
+        "sick": { "camper": 1.5, "water": 1.3, "fed": 0.75, "townPer": 0.6, "townMax": 1.12 },
+        "crime": { "perShare": 0.8, "max": 0.1, "theft": 2.5, "theftMax": 1.8, "hungry": 1.5 },
+        "mood": { "bigShare": 0.06, "afterDays": 30, "perShare": 25, "max": 4, "step": 0.1 }
+    },
+    "aid": {
+        "_doc": "The player's help at the camp (systems/arrivalCamps.js give / buildHomes; the Newcomers' Camp panel, ui/actionMenu/arrivalCamp.js). Food from the pack is the camp's: it eats eat of a person's daily food a head a day from it (fed: less sickness and theft). Coin goes into the households' purses (timber and builders' wages). Planks, wood and stone (timber) are built with before anything is bought. Build them homes pays the builders and the timber for every house still to come into the camp's fund: twice the lots a week, every house built by hired hands; what is not spent comes back when the camp is struck. Each gift lifts the town's mood by its worth / per (at most moodMax a camp), and the town (memory) and the campers remember it.",
+        "eat": 0.5,
+        "timber": ["planks", "wood", "stone"],
+        "per": 40,
+        "moodMax": 3,
+        "memory": "camp_aid"
+    },
+    "_map": "The camp on the street map (world/innerMap/arrivalCamp.js): tents drawn from tents, a fire to every firePer tents, a wagon (ui/innerMapCarts.js) to every wagonPer tents and a washing line to every linePer (at most maxWagons, maxLines), and beasts (species from beasts, at most maxBeasts) owned by the households.",
+    "tents": ["tp_tent_canvas", "tp_tent_canvas_open", "tp_tent_canvas", "tp_tent_patch"],
+    "firePer": 5,
+    "wagonPer": 4,
+    "maxWagons": 3,
+    "linePer": 3,
+    "maxLines": 4,
+    "beasts": ["goat", "chicken", "chicken", "sheep", "goat", "cow"],
+    "maxBeasts": 6
+}

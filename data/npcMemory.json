@@ -59,6 +59,7 @@
         "ruled_harsh": { "weight": -8, "halfLife": 900, "label": "the harsh judgement {actor} gave", "sayTown": "{Actor} was hard on {vn} at court. Folk here remember it." },
         "ruled_generous": { "weight": 6, "halfLife": 900, "label": "the open hand {actor} showed at court", "sayTown": "{Actor} was open-handed at court here. It is still spoken of." },
         "ruled_unjust": { "weight": -8, "halfLife": 900, "label": "the unjust ruling {actor} gave", "sayTown": "{Actor} judged {vn} unjustly here. Folk have long memories." },
+        "camp_aid": { "weight": 5, "halfLife": 900, "label": "the help {actor} gave the newcomers' camp", "sayTown": "{Actor} helped the newcomers camped outside the town when they had nothing. That was well done." },
         "dole": { "weight": 10, "halfLife": 1800, "label": "the grain {actor} gave in the famine", "sayTown": "{Actor} fed this town in the famine. We remember who kept us alive." },
         "raided": { "blood": true, "weight": -25, "halfLife": 3000, "lordDeed": "raid", "label": "the raid {actor} made on the town", "sayTown": "{Actor} put this town to the torch. The scorch marks are on the old houses still." },
         "conquered": { "weight": -15, "halfLife": 2400, "lordDeed": "conquest", "label": "the taking of the town by {actor}", "sayTown": "{Actor} took this town by the sword." },

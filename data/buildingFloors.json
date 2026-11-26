@@ -8,16 +8,17 @@
     "townCraft": { "village": 2, "town": 3, "city": 4, "capital": 4, "_default": 2 },
     "maxFloors": {
         "ship_below": 1,
-        "house": 2, "manor": 3, "tavern": 2, "inn": 3, "hotel": 4, "guest_house": 2, "roadhouse": 2,
+        "house": 2, "tenement": 4, "rowhouse": 2, "manor": 3, "tavern": 2, "inn": 3, "hotel": 4, "guest_house": 2, "roadhouse": 2,
         "town_hall": 3, "guildhall": 3, "bank": 3, "library": 3, "post_house": 2, "mint": 2,
         "guard_tower": 4, "barracks": 2, "warehouse": 2, "granary": 2, "mill": 2, "barn": 2, "stable": 2, "farm": 2,
         "blacksmith": 2, "bakery": 2, "apothecary": 2, "bathhouse": 2,
         "marketplace": 1, "church": 1, "temple": 1, "chapel": 1, "well": 1, "jail": 1, "castle": 1,
         "_default": 2
     },
-    "minFloors": { "manor": 2, "inn": 2, "hotel": 2, "guard_tower": 2, "town_hall": 2, "mill": 2 },
+    "minFloors": { "tenement": 3, "rowhouse": 2, "manor": 2, "inn": 2, "hotel": 2, "guard_tower": 2, "town_hall": 2, "mill": 2 },
     "upperRooms": {
         "house": ["bedchamber"],
+        "tenement": ["bedchamber"], "rowhouse": ["bedchamber"],
         "manor": ["bedchamber", "gallery"],
         "tavern": ["guest_rooms"], "inn": ["guest_rooms"], "hotel": ["guest_rooms"], "guest_house": ["guest_rooms"], "roadhouse": ["guest_rooms"],
         "town_hall": ["offices", "archive"], "guildhall": ["offices", "archive"], "bank": ["offices", "archive"], "library": ["archive"], "mint": ["offices"], "post_house": ["offices"],

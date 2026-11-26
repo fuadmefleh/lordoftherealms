@@ -40,6 +40,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { TownMarks, markHash } from '../world/townMarks.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { SettlementWealth } from '../world/settlementWealth.js';
+// (the houses a fire or a sack takes, and a crowded town's fires: world/townHousing.js)
+import { TownHousing } from '../world/townHousing.js';
 import { Townsfolk } from './townsfolk.js';
 import { House } from './house.js';
 import { Fame } from './fame.js';
@@ -102,6 +104,7 @@ export const TownMemory = {
         if (kind === 'fire') {
             m = TownMarks.add(settlement, 'fire', TownMemory._fireInfo(settlement, info, day), day);
             if (conseq) TownMemory._afterFire(world, settlement, m, day);
+            if (conseq && m && settlement.housing) TownHousing.lose(settlement, _num(m.share));
         } else if (kind === 'sack') {
             const S = C.sack;
             const tier = SettlementWealth.tierOf(SettlementWealth.score(settlement));
@@ -112,6 +115,8 @@ export const TownMemory = {
                 slow: _num(((C.fire.slow || {})[tier]), 1),
             }, day);
             if (conseq) TownMemory._folkStruck(world, settlement, m, share, day, 'the sack', 'fled the sack');
+            // (a share of its houses burnt and pulled down: half the sack's share)
+            if (conseq && settlement.housing) TownHousing.lose(settlement, share * 0.5);
         } else if (kind === 'plague') {
             const dead = Math.max(0, Math.round(_num(info.dead)));
             if (dead < _num(C.plague.moundAt, 25)) return null;
@@ -256,6 +261,8 @@ export const TownMemory = {
         if (q4 === 3) p *= _num(F.winter, 1.25);
         const k = s.kingdom != null && typeof world.getKingdom === 'function' ? world.getKingdom(s.kingdom) : null;
         if (k && Array.isArray(k.wars) && k.wars.length) p *= _num(F.war, 1.5);
+        // (more hearths under each roof: a crowded town burns the oftener)
+        if (s.housing) p *= TownHousing.fireMult(s);
         if (_h('fire', s.q, s.r, day) >= p) return;
         const m = TownMemory.mark(s, 'fire', { cause: 'chance' }, world);
         if (!m) return;

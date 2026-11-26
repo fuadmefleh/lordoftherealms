@@ -338,6 +338,7 @@
         "late": "Up half the night after that fight. I can hardly keep my eyes open."
     },
     "annals": {
+        "dayLabour": "{a}, out of work and going hungry, took day labour {when}.",
         "apprenticed": "{a} was apprenticed to {b}, the {trade}, {when}.",
         "journeyman": "{a} finished an apprenticeship as a {trade} {when}.",
         "master": "{a} became a master {trade} {when}.",

@@ -29,6 +29,7 @@
 //     them slaughtered is the player's to butcher, gone from its herd.
 
 import { InnerMap } from '../world/innerMap.js';
+import { InnerMapGroundGoods } from './innerMapGroundGoods.js';
 import { PlayerCoin } from '../player/playerCoin.js';
 import { InnerMapTasks } from './innerMapTasks.js';
 import { InnerMapCombat } from './innerMapCombat.js';
@@ -663,7 +664,10 @@ export const InnerMapAnimals = {
                 const q = a.q + spots[i][0], r = a.r + spots[i][1];
                 const t = InnerMap.getTile(q, r);
                 if (!t || t.groundItem || !t.subTerrain || !t.subTerrain.passable || t._wet || t._sea) continue;
-                t.groundItem = { itemId: f.entry.item, name: f.entry.name, icon: f.entry.icon || '📦', quantity: f.qty, placedBy: 'butcher' };
+                // (kept by the world as the player's pile: it lasts past the map's redrawing, goes off, can be taken: ui/innerMapGroundGoods.js)
+                if (!InnerMapGroundGoods.lay(null, t, f.entry.item, f.qty, { kind: 'meat', by: 'player', byName: 'you', src: 'meat', label: f.entry.name, icon: f.entry.icon || null })) {
+                    t.groundItem = { itemId: f.entry.item, name: f.entry.name, icon: f.entry.icon || '📦', quantity: f.qty, placedBy: 'butcher' };
+                }
                 out.push(f);
                 i++;
                 break;

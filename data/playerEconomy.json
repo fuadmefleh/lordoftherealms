@@ -252,10 +252,10 @@
             "produces": null,
             "productionRate": 6,
             "upkeep": 7,
-            "requiredTerrain": ["forest", "dense_forest", "woodland", "boreal_forest", "seasonal_forest", "temperate_rainforest", "tropical_rainforest", "plains", "grassland", "hills"],
-            "allowedRecipes": ["FIREWOOD"],
+            "requiredTerrain": ["forest", "dense_forest", "woodland", "boreal_forest", "seasonal_forest", "temperate_rainforest", "tropical_rainforest", "plains", "grassland", "hills", "highlands", "savanna", "swamp", "tundra", "island", "beach", "badlands", "desert", "mountain", "snow", "ash_plains"],
+            "allowedRecipes": ["PLANKS", "FIREWOOD"],
             "recipeChangeCost": 0,
-            "description": "Processes timber into firewood and lumber. Upkeep: 7g/day"
+            "description": "Saws timber into planks, or splits it into firewood. Upkeep: 7g/day"
         },
         "QUARRY": {
             "id": "quarry",
@@ -900,6 +900,7 @@
         "GAUNTLETS": { "id": "gauntlets", "name": "Steel Gauntlets", "icon": "🧤", "basePrice": 145, "description": "Steel plates over the back of the hand and fingers, on a leather glove." }
     },
     "RECIPES": {
+        "PLANKS": { "id": "planks", "name": "Saw Planks", "input": "wood", "inputQty": 3, "output": "planks", "outputQty": 4, "description": "Saw logs into boards for joiners, coopers and builders (as a town's sawyers do: 1.5 wood to 2 planks)." },
         "FIREWOOD": { "id": "firewood", "name": "Split Firewood", "input": "wood", "inputQty": 2, "output": "firewood", "outputQty": 5, "description": "Prepare fuel for heating." },
         "FLOUR": { "id": "flour", "name": "Mill Flour", "input": "grain", "inputQty": 2, "output": "flour", "outputQty": 2, "description": "Grind grain into flour." },
         "BREAD": { "id": "bread", "name": "Bake Bread", "input": "flour", "inputQty": 1, "output": "bread", "outputQty": 4, "description": "Bake nutritious bread." },

@@ -55,6 +55,10 @@ import { PracticeSkills } from './practiceSkills.js';
 import { Laws } from './laws.js';
 import { TownFamily } from './townFamily.js';
 import { Climate } from '../world/climate.js';
+import { TownGrowth } from '../world/townGrowth.js';
+// (a crowded town's houses, its poor's hunger: world/townHousing.js, systems/townPoor.js)
+import { TownHousing } from '../world/townHousing.js';
+import { TownPoor } from './townPoor.js';
 
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const ANNALS = ['outbreak', 'outbreakOver', 'fellIll'];
@@ -315,6 +319,12 @@ export const Illness = {
         env.townMult = cl && _num(cl.until) >= day ? _clamp(_num(cl.mult, 1), 0, 1) : 1;
         // The climate's era: fevers in wet decades and warm ages, winter sickness in a cold one (world/climate.js)
         try { env.clim = Climate.diseaseMult(world, folk.q, folk.r, day); } catch (e) { env.clim = 1; }
+        // A newcomers' camp outside: its people crowded under canvas, drawing their water where
+        // they can; and the town about it a little the worse (world/townGrowth.js campRisk)
+        env.camp = s ? TownGrowth.campRisk(s) : null;
+        // Packed houses and hungry poor: fevers and the flux go round faster
+        env.crowd = s && s.housing ? TownHousing.sickMult(s) : 1;
+        env.poorHunger = s && s.poor ? TownPoor.sickMult(s) : 1;
         return env;
     },
 
@@ -388,6 +398,14 @@ export const Illness = {
         if (env.dearth) m *= _num(R.dearth, 1.6);
         if (env.clim && env.clim !== 1) m *= env.clim;
         if (env.alms && ['beggar', 'villager', 'farmer', 'child'].includes(p.role)) m *= _num(R.alms, 0.75);
+        if (env.camp) m *= p.camp ? (d.water ? env.camp.water : env.camp.camper) : env.camp.town;
+        if (env.crowd && env.crowd !== 1) m *= env.crowd;
+        // The hungry and the starving (systems/townJobs.js payday: p.hungry, p.starve seasons) — and the town's
+        // poor going short where none of the roster is marked (the poorer sort only)
+        if (p.hungry != null && day - p.hungry <= 40) {
+            const N = (TownPoor.config().named || {});
+            m *= _num(N.sickHungry, 1.5) * (1 + _num(N.sickStarve, 0.4) * Math.min(3, _num(p.starve)));
+        } else if (env.poorHunger > 1 && ['beggar', 'villager', 'farmer', 'child'].includes(p.role)) m *= env.poorHunger;
         return m;
     },
 

@@ -117,6 +117,12 @@ export const InnerMapCarts = {
         }
         // The town's carts, standing by its stores
         if (InnerMap.townArea && InnerMap.townArea()) this._parkTownCarts();
+        // The newcomers' wagons standing at their camp on the outskirts (world/innerMap/arrivalCamp.js)
+        const cv = InnerMap._campView;
+        for (const w of (cv && cv.wagons) || []) {
+            const spot = this._wagonSpot(w);
+            if (spot) this._add('wagon', spot.trail, { owner: 'settlers', facing: spot.facing, variant: 'loaded' });
+        }
     },
 
     _add(kind, behind, opts = {}) {

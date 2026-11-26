@@ -130,6 +130,9 @@ Object.assign(InnerMap, {
         this._addPropertyBuildings();
         // ── Guest houses, inns, hotels and roadhouses: their names and houses (systems/hospitality.js) ──
         this._bindHospitality(game.world);
+        // ── Newcomers camped on the outskirts, as the town's record has it today (world/innerMap/arrivalCamp.js) ──
+        if (hasSettlement && this._pitchArrivalCamp) this._pitchArrivalCamp(worldTile.settlement, game.world);
+        else this._campView = null;
 
         // ── Spawn NPCs ──
         this.npcs = [];
@@ -177,6 +180,8 @@ Object.assign(InnerMap, {
         }
         // The hex's deer, grazing where the hash puts their herds (world/innerMap/animals.js)
         if (this._spawnAnimals) this._spawnAnimals(game, worldTile, worldQ, worldR);
+        // ...and the newcomers' beasts about their camp (world/innerMap/arrivalCamp.js)
+        if (hasSettlement && this._campAnimals) this._campAnimals();
         // The season on the ground: ice, mud, the going, the fair or the bonfire (world/innerMap/streetSeasons.js)
         if (this._bindStreetSeason) this._bindStreetSeason(game.world, worldTile, worldQ, worldR);
 
@@ -1224,6 +1229,9 @@ Object.assign(InnerMap, {
                 roadhouse: 'tavern',
                 guest_house: 'house',
                 hotel: 'manor',
+                // (a tenement's rooms and a row's are a house's, floor upon floor: data/townHousing.json)
+                tenement: 'house',
+                rowhouse: 'house',
             };
             for (const t of [...typeCandidates]) {
                 addType(typeAlias[t]);

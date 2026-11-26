@@ -1291,8 +1291,18 @@ Object.assign(UI.prototype, {
      */
     showNotification(title, message, type = 'default') {
         // (sums told as goods' worth where the player deals in kind: ui/barterVoice.js)
-        title = voice(this.game, title);
-        message = voice(this.game, message);
+        // (a held notice's card, releaseNotifications: voiced and logged when it came)
+        const replay = !!this._notifReplay;
+        if (!replay) {
+            title = voice(this.game, title);
+            message = voice(this.game, message);
+        }
+        // A day turning across frames (ui/game/dayTurn.js): logged now, its card held until the day is done
+        if (this._heldNotifs && !replay) {
+            this._logNotification(title, message, type);
+            this._heldNotifs.push([title, message, type]);
+            return;
+        }
         const area = document.getElementById('notificationArea');
         if (!area) {
             // No HUD mounted (title screen, tests): still keep the log
@@ -1344,38 +1354,82 @@ Object.assign(UI.prototype, {
                 old.remove();
                 this._notifFolded = (this._notifFolded || 0) + 1;
             }
-            let chip = document.getElementById('notifOverflow');
-            if (!chip) {
-                chip = document.createElement('button');
-                chip.id = 'notifOverflow';
-                chip.type = 'button';
-                chip.addEventListener('click', () => {
-                    this._notifFolded = 0;
-                    chip.remove();
-                    this.showEventLogPanel();
-                });
-            }
-            chip.textContent = `+${this._notifFolded} more · open the log`;
-            area.appendChild(chip);
-            clearTimeout(this._notifChipTimer);
-            this._notifChipTimer = setTimeout(() => {
-                this._notifFolded = 0;
-                chip.remove();
-            }, (this._notifDuration || 4000) + 3000);
         }
+        if (this._notifFolded > 0 && (live.length > MAX_CARDS || this._notifChipDue)) this._notifChip(area);
 
-        // Play notification SFX based on type
-        if (typeof audioManager !== 'undefined') {
+        // Play notification SFX based on type (a day's notices told together: one chime)
+        if (typeof audioManager !== 'undefined' && !this._notifQuiet) {
             if (type === 'success') audioManager.playSFX('success');
             else if (type === 'error') audioManager.playSFX('error');
             else audioManager.playSFX('notify');
         }
 
-        this._logNotification(title, message, type);
+        if (!replay) this._logNotification(title, message, type);
 
         // Auto-remove based on settings duration
         const duration = this._notifDuration || 4000;
         setTimeout(dismiss, duration);
+    },
+
+    /**
+     * Hold the notices (a day's end run across frames, ui/game/dayTurn.js) until
+     * releaseNotifications: then the few that would stay on screen are shown as cards
+     * (the urgent first, then the newest), the rest go to the log and the "+N more" chip at
+     * once, as a busy day's cards are folded, without building cards only to fold them.
+     */
+    holdNotifications() {
+        if (!this._heldNotifs) this._heldNotifs = [];
+    },
+
+    releaseNotifications() {
+        const held = this._heldNotifs;
+        this._heldNotifs = null;
+        if (!held || !held.length) return;
+        // (the Activity Log once, for the whole day's notices)
+        this._queueEventsRefresh();
+        const MAX_CARDS = 3;
+        const rank = (type) => (type === 'error' ? 3 : type === 'warning' ? 2 : 1);
+        const shown = new Set(held.map((n, i) => ({ i, r: rank(n[2]) }))
+            .sort((a, b) => b.r - a.r || b.i - a.i).slice(0, MAX_CARDS).map(x => x.i));
+        const hasArea = typeof document !== 'undefined' && !!document.getElementById('notificationArea');
+        let chimed = false;
+        if (!hasArea) return;
+        held.forEach(([title, message, type], i) => {
+            if (shown.has(i)) {
+                // (already voiced and logged: the card only)
+                this._notifQuiet = chimed;
+                this._notifReplay = true;
+                try { this.showNotification(title, message, type); } finally { this._notifQuiet = false; this._notifReplay = false; }
+                chimed = true;
+            } else {
+                this._notifFolded = (this._notifFolded || 0) + 1;
+                this._notifChipDue = true;
+            }
+        });
+        if (this._notifChipDue && hasArea) this._notifChip(document.getElementById('notificationArea'));
+    },
+
+    /** The "+N more" chip at the foot of the cards: the notices folded away, opening the log. */
+    _notifChip(area) {
+        this._notifChipDue = false;
+        let chip = document.getElementById('notifOverflow');
+        if (!chip) {
+            chip = document.createElement('button');
+            chip.id = 'notifOverflow';
+            chip.type = 'button';
+            chip.addEventListener('click', () => {
+                this._notifFolded = 0;
+                chip.remove();
+                this.showEventLogPanel();
+            });
+        }
+        chip.textContent = `+${this._notifFolded} more · open the log`;
+        area.appendChild(chip);
+        clearTimeout(this._notifChipTimer);
+        this._notifChipTimer = setTimeout(() => {
+            this._notifFolded = 0;
+            chip.remove();
+        }, (this._notifDuration || 4000) + 3000);
     },
 
     /** Record a notification in the event log (capped at 200 entries). */
@@ -1396,6 +1450,11 @@ Object.assign(UI.prototype, {
         // updateStats (a level-up told from the game loop, a second in the
         // same frame): one refresh per frame, however many were logged
         this._notifSeq = (this._notifSeq || 0) + 1;
+        // (notices held through a day's turn refresh it once, when it is done: releaseNotifications)
+        if (!this._heldNotifs) this._queueEventsRefresh();
+    },
+
+    _queueEventsRefresh() {
         if (!this._eventsRefreshQueued && typeof this.updateEventsPanel === 'function' && typeof requestAnimationFrame === 'function') {
             this._eventsRefreshQueued = true;
             requestAnimationFrame(() => {

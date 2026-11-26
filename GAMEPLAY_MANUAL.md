@@ -1281,6 +1281,31 @@ You hear when a column arrives at one of your towns, and once a month when one o
 
 **Where the people go** (from that card, or from Settlers & borders) shows the towns drawing and losing people this year and the great movements on record. It also lists the columns on the roads now.
 
+### Newcomers' Camps and New Streets
+
+When many people come to a town at once — a migrant column walking in, a big week of settlers or refugees, the colonists you paid to come to your colony — there is no room for them all. Tuned in `data/townGrowth.json`.
+
+- **When a camp is pitched.** The arrivals of the last 7 days are added up. Empty houses (a town that has lost people) take them in first. If what is left reaches 8% of the town's people (at least 15, at most 60), they pitch a camp. While the camp stands, everyone who comes joins it. A colony still living in tents doesn't get a separate camp; the newcomers pitch their tents among the rest.
+- **The camp.** It stands on open ground beyond the built town (outside the walls), near the roads out and near water if there is any. It has one canvas tent for each household still under canvas, never more (a town that keeps no roster of names: one for every 5 people). It also has fires, firewood, sacks and crates, washing lines, a wagon or two and a few of the households' goats, chickens and cows. The ground is trodden bare and a path leads to the road. The newcomers are real townsfolk with names and families. Each household sleeps in its own tent and spends part of the day by the fires and the washing. The rest of the day they go to the well, the market and their work like anyone else. The named households get the last lots, so the faces you see in the tents stay until the camp is struck. On the world map a small tent shows beside the town, and the town's info panel has a **Camp** line.
+- **Lots and new streets.** Each week up to 2 households (3 in a city) get a building lot, granted by the town. While you are paying for their homes, they get twice as many. The town's free lots go first. When none are left, the town lays out a **new street** at its edge, with 6 lots along it, on whichever side has the most room. That can be north or south across the road out, or east or west along the road out (its lots fronting the road on both sides). Each later street goes out beyond the last, or to another side. A town hemmed in by water or the map's edge on every side finds **plots among its yards and gardens** instead, each one fronting a street (*Building Plots in …*). A village can lay out 6 new streets, a town 4, a city 2; a capital has no room for any. Each lot houses 8 to 14 of the campers.
+- **Only lots the map can show.** Before a street is kept, it is laid out on the town's street map without being shown. Only the lots that fit are kept, and a street with no room at all is not laid out (none is tried again for 90 days). The lot book never holds a lot you can't walk to. Until the town designs have loaded (your first visit to any town's street map), a street is kept whole and is trimmed to the map the first time it is drawn.
+- **Building the houses.** The timber and stone come first from what you gave the camp, then from the town's market stock (a village house takes 4 wood and 4 planks; a town house 6 planks and 2 stone). The household pays the market price out of its own purses, then from your builders' fund if you set one up, and the coin goes to the town. The town gives what they can't pay. If the market has no timber, the work waits until some comes in. A household with coin to spare (more than 3g a head beyond the wages) **hires the town's builders**: two of its free carpenters, masons or labourers, at 1.2–2.4g a day each, paid into the builders' own purses. The builders leave their own trade while they work. A town that keeps no roster of names is paid into its purse instead. Hired builders finish in half the time. Otherwise the household **builds with its own hands** over 24 to 36 days. Either way the house shows as a building site, wall by wall, until it stands.
+- **What a camp does to its town.** While the camp stands:
+  - **Sickness.** The campers fall sick 1.5× as often, and 1.3× more again from what comes in the water, the plague included. While they are fed, this is a quarter less. Everyone else in the town is a little worse off too, at most 1.12×.
+  - **Crime.** The town's crime rises by up to 10%, and its burglaries and cutpurses by up to 1.8×. Both are higher while the campers go hungry.
+  - **Mood.** A camp of 6% of the town or more that is still standing after 30 days lowers the town's mood, by up to 4 points, a little each day. The mood comes back when the camp is struck.
+- **Helping them.** To help, click a tent or fire at the camp, use the town's info panel (Camp line), or open the People panel's *Newcomers' camp* card. These open **The Newcomers' Camp** panel. In the town you can:
+  - **give food from your pack.** The camp eats half a person's daily food a head each day.
+  - **give coin.** It goes into the households' purses, for their timber and builders.
+  - **give planks, wood or stone.** These are built with before anything is bought.
+  - **Build them homes.** You pay the real price: the builders' wages and the timber for every house still to come. Every house is then built by hired builders, houses already going up by hand are taken over at once, and twice the lots are taken each week. Whatever is not spent comes back to you when the camp is struck.
+
+  Each gift lifts the town's mood a little (1 point per 40g of worth, at most 3 for each camp). The town, and the households you helped, remember it.
+- **No room to build.** If the town can lay out no more streets, the last of the campers crowd into its houses after 45 days.
+- **The camp is struck.** When everyone has a roof, the tents come down. The mood it cost the town comes back, and unspent food and timber go to the market. A cold fire ring is left, and the trodden ground grows back over 40 days.
+- **The map keeps them.** The new streets and lots are saved with the town. Each time the street map is drawn, it is built in this order: the town's own plan, then the hex's water (its river, ponds and shore), then the new streets in the order they were laid out, then the marks of the town's history. The water depends only on the hex, its world river and the town's plan, never on what has happened since. A new street or quarter once moved a river, and with it the camp. The look of the ground depends on the hex's own climate, not the day's weather.
+- **Notices** (your own towns and the town you stand in): *Newcomers Camp Outside …*, *A New Street in …* with its name, *Building Plots in …*, *The Builders' Fund* (money coming back to you), and *The Camp Is Gone* when the last of them have found homes.
+
 ### The Hinterland: Mines, Leases and Prospecting
 
 The villages and countryside around every town specialise by their land. Open a town's **Trade** window and use its **⛏️ Hinterland** tab; the sites also show on the map as small icons beside their hexes (zoomed in), with a bar for what is left in a deposit and a gold ring round your own leases. Tuned in `data/hinterland.json`.
@@ -1316,6 +1341,54 @@ On the home town's market day each site sends what it dug half to its home marke
 - **Losing a lease.** You lose it at the end of its term, when the vein runs out, at war with the realm, under an embargo between it and the crown you rule or serve, after a default on its lenders, or when you cannot pay its wages and royalties for 14 days (that also counts as a missed payment on your credit). You also lose it when the town changes hands, or by royal edict if the crown's treasury is empty. A realm you rule can revoke a merchant house's lease.
 
 The Steward's Counsel warns when your vein is running out or a lease owes money, and points to auctions nearby.
+
+### The Poor: How the Idle Get By
+
+Every town's working households have to buy what they need. At each market turn, each working class (peasants and labourers, artisans, merchants) buys its basket at the town's own prices: **food first, then fuel, then clothes**. Peasants grow part of their own food and gather fuel (more in a village than in a city). A hand at work pays from their wage, and one wage keeps a whole household. Idle hands earn nothing. The clergy and the nobles live on tithes and rents.
+
+In good times a class earns more than its basket and **puts some by**. These savings are the people's share of the town's purse. When a household falls short, the shortfall is met in this order:
+
+1. **Savings.**
+2. **Day labour.** The idle haul the day's trade and help build the town's houses, at about 70% of the land wage. The works and properties you fund already hire from the same idle hands.
+3. **Alms, in real coin.** The realm's **church** gives from its estate purse. The town's **guilds** help their own artisans and merchants from their treasuries. The **noble houses** that hold the town's estates give largesse. The **poor rate** applies where the realm's *Poor Relief* law or the town's own ordinance keeps one, and the burghers pay for their poor out of the town's purse. Under **the crown's dole**, the royal treasury pays what is left, booked on the treasury's *Dole* line. An **almshouse's poor box** pays out what was given to it. All of this coin goes into the town's purse, where the poor spend it on bread.
+4. **Begging.** The better-off give in the street.
+5. **Petty theft.** It raises the town's crime.
+6. **Pawning.** The poor sell their few things. These come back slowly once they are fed again.
+
+Whatever is still short **goes unbought**: clothes first, then fuel, then bread. That food stays on the market's stalls, unsold. This is **hunger**. A hungry class's welfare falls, the townsfolk sicken more easily, and people move to towns where their class does better. In a long dearth, the poorest **die of hunger**. The heralds' news records it, and so does the People panel.
+
+**The named townsfolk** live the same way. At each season's payday, a person who can't pay for their board is fed by the dole: first the almshouse's box, then the church's alms. Someone still short by more than 40% of their board goes **hungry**. After seasons of it they are **starving**. On the street map a starving person is drawn thinner and stooped, and their name reads "gaunt with hunger" or "starving". The hungry jobless take day labour where the town is hiring, take to begging, or leave town. A person who starves for two seasons or more, in a dearth or a hungry town, may die of it ("hunger and want").
+
+**What you can do.**
+- **Give to the poor box** from the People panel while you are in the town: 50, 200 or 1,000 gold. Once your gifts reach 200 gold you have **endowed an almshouse**. Its dole feeds the hungry, and the town remembers who paid for it.
+- **Levy the town's poor rate** if you rule the town. As ruler of a realm you can also set the *Poor Relief* law: charity alone, a poor rate, or the crown's dole.
+- **Hire the idle** with works, properties and jobs.
+
+The People panel's **The poor** card shows the idle households, the daily shortfall, how the poor are getting by (savings, day labour, alms, begging, theft, going without), any hunger and its dead, the savings, the poor box and the relief in force. You are warned of hunger and overcrowding in the towns you rule and in the town you stand in.
+
+### Housing: Capacity, Crowding and Tenements
+
+Each town counts its dwellings by type, and each type houses a family and its kin. A dwelling's **capacity** is how many people its households hold; its **rooms to let** take lodgers on top of that:
+
+| Type | Houses | Rooms let | Where |
+|---|---|---|---|
+| Hovel | 5 | – | villages, hearth and timber ages |
+| Cottage | 6 | 1 | anywhere |
+| House | 7 | 2 | timber age on |
+| Townhouse | 8 | 4 | town and up; +10% in stone, +20% guild age |
+| Row houses | 12 | 2 | town and up |
+| Tenement | 22 | 6 | town and up; +25% in stone, +40% guild age |
+| Lodging house | 6 | 8 | town and up |
+
+A town's capacity is the sum over its dwellings. It starts a little above its people. Over capacity, the town's **upper rooms are let to lodgers** first. Past the rooms, people **double up and sleep rough**. Crowding has these effects:
+- **Rents** go up, to as much as 2.5× (and fall when houses stand empty).
+- **Sickness** and **fire** spread more easily.
+- Every class's **welfare** falls, and the poor feel it most.
+- The town **stops growing**, and its people leave for towns with room.
+
+**The builders.** Every week the town's builders put up the dwellings it lacks. Timber and stone come off its market; without them a house takes longer to build. The idle find day labour on these builds. A fire or a sack burns houses down, but the plots stay for rebuilding. When a town runs short of **free plots** or is crowded, it builds denser: **row houses and tenements** in towns and cities, plain houses in a village. A village or town short of ground spreads into its fields, laying new plots at its edge each week; a city lays two plots a week and a capital one, and packs its people into row houses and tenements instead. Townsfolk and rival Houses who build on the street map's lots also build what the town needs, so a crowded city's lots fill with tall tenements.
+
+**Your tenement.** On a lot of your own in a town or city, you can raise **row houses** (4 rooms) or a **tenement** (9 rooms) and let them by the room. You can do this from the lot on the street map or from *Lots & Town Houses*. Lodgers take the rooms faster when the town is crowded. Each pays the room rent, which is a fifth of a house's rent times the crowding, out of the town's purse. The panel shows how many rooms are let, and you can put the lodgers out. The building stands on the street map three storeys high, and its households live floor by floor.
 
 ### Town Guilds
 
@@ -8989,7 +9062,8 @@ Press **I** anywhere (or choose **Inventory** under the top bar's Kingdom menu) 
   - **Enshrine** (a treasure, if you head a House);
   - **Make an heirloom** (a masterwork or a treasure);
   - **Put on / Take off the hotbar**;
-  - **Drop one / Drop them all**, onto the ground beside you. This works only on the street map, and you pick the goods up again from the ground's menu. A piece you wear must be put away first;
+  - **Drop…**: set some of the stack down (1, 5, 10, half, all, or a number in the box). On the street map it goes on the ground beside you; on the world map it is left at the roadside of the hex you stand on. A piece you wear stays on: you can set down the spares, not the one you wear, until you put it away;
+  - **Throw away…**: break it, burn it, bury it — gone for good, not left for anyone. A stack worth 40g or more, a treasure, or goods a quest wants carried asks you to make sure first;
   - to **give** a good to someone, talk to them and offer it as a gift.
 - **Heirlooms** of your House are listed at the top. They are not in the packs, since they pass to your heir.
 
@@ -9002,6 +9076,25 @@ A good can be in only one slot. Putting it in another slot moves it, and whateve
 Until you arrange the bar yourself, it fills itself from your packs as before. Once you arrange it, the layout is yours. A slot whose good runs out stays assigned (shown greyed with a 0) and fills again when you get more, and nothing is put in a slot you emptied. **↺ Fill itself** hands the bar back to filling itself. The layout is saved with your game.
 
 A number key uses its slot only on the street map, and only when the slot holds something you still have. Otherwise 1–3 keep setting the game speed.
+
+### Goods Left on the Ground
+
+Whatever is set down stays in the world, not on the street map you happened to be on: each hex keeps its own piles, saved with your game.
+
+- **Where they lie.** Dropped on the street map, a pile lies where you set it (your own pile of the same good beside you takes more). A good on the hotbar set down with a click on the ground goes there too. Left at the roadside from the world map, it lies about the middle of the hex's map. Enter the hex later and the piles are on the ground, as sacks or the goods themselves.
+- **Picking up.** On the street map, right-click a pile: **Pick Up All**, **One** or **Half**. On the world map, **Goods Left Here** (Gather & Hunt in the Hearth seal) lists every pile on the hex with the same choices. You take as much as your packs and back can bear; graded goods keep their grades on the ground and come back with them.
+- **Anyone's for the taking.** Goods left lying are abandoned, and others take them: beggars, ragpickers and passers-by in a town (quickly), travellers and carters on a road, woodsmen and wanderers in the wilds (slowly). The more a pile is worth, the sooner it goes. On the street map you can watch someone walk to a pile, stoop and carry it off. What they take goes somewhere real: a good the market trades is sold into that town's market (the nearest town's, for a traveller or a woodsman), anything else is kept in a house there, a trader on the road loads it onto the caravan, and outlaws with a lair close by carry wild finds to their hoard. Things left out in the wild may lie a long while.
+- **You hear of it** if you are there to see it (a pile of yours taken while you stand on the hex). Otherwise you find out when you come back: one line telling you what is gone.
+- **Rot.** Food left out spoils three times as fast as in a market's store; a unit at a time rots away. Durable goods lie until someone takes them.
+- **Town refuse.** Now and then a town's market throws a little of its spoiling food into the street. Beggars eat it, or it rots. Anyone may pick it up first.
+- **Someone else's.** Goods someone has only just set down, with the owner about, are still theirs: taking them is theft, with the same odds of being seen as lifting from a chest (fine, standing, hot goods). Once they are abandoned, or the owner is gone, they are anyone's.
+- **Set down for the day.** In the towns and on the roads near you, people put things down for a while: a stallholder's crates, washing, a basket or a stack of firewood by a householder's door, sacks of the harvest by the fields in autumn, a carter's load while he rests, a trader unloading, a caravan's camp goods. They come out of the town's market stock or the caravan's cargo and are claimed for the day. On the street map the owner is a real person in the street: they stand about, step away now and then, and in the afternoon walk back, stoop and carry the pile home. The ground menu tells you whose it is and whether they are close by: lift it with them close and it is theft; while they have stepped away no one is watching it. The next day most owners have taken their things back (to the stall, the cargo); now and then one never comes back, and the pile lies abandoned, anyone's.
+- **Rival retinues.** A rival House's retinue picks up what lies where it rides and where it stops, for the House's stores. Anything of worth the head of the House has his men take. The House sells what it picked up in the next market town at a discount, the town paying, and uses the rest. You hear of it if you are standing there; your own goods taken are in the one line on your return.
+- **Inside buildings.** Something left inside a house is taken in by the household, into the house's own chest or larder if it keeps one, else among the household's things. In a tavern, inn or church the staff or a patron takes it and sells it on in the town. Servants sweep out refuse. Nothing left in your own house is touched. A house standing empty, to let, has nobody to take it in: the landlord's man clears it, slowly.
+- **The townsfolk's finds.** What people pick up that no market deals in is kept in their houses. They use it up a little at a time, faster once a town has more than it wants. When a market starts dealing in a good, the houses sell theirs on into it. The market's **♻️ Second-hand** tab (under More, when there is any) sells it to you cheaply: the coin goes into the town's purse.
+- **Butchered meat, spent arrows, wreck salvage.** What the packs could not take when you butchered a beast, an arrow that missed and landed whole, and the crates and strongboxes of a ship that broke up are all kept by the world now. They are still there when you leave the map and come back, drawn as before. Meat goes off on the ground, others take your leftovers, and a strongbox nobody swims out to sinks into the silt after about three months.
+- **The books.** The ground keeps a ledger. Goods come in by source: yours dropped, town refuse, set down, meat, arrows, salvage. They go out by end: picked up, rotted, eaten, cleared, taken back, sunk, or taken to a market, a house, a larder, a caravan, a hoard or a rival House. What is on the ground always equals what came in less what went out. The cheats panel shows the totals in one line.
+- A hex holds up to 16 piles. Settings: data/groundGoods.json.
 
 ### Pass the Time: Letting Days Go By
 

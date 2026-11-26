@@ -48,11 +48,15 @@ export const InnerMapLots = {
                 // (a property of yours on it goes up at the builders' pace: systems/construction.js)
                 const prop = (wt && wt.playerProperties || []).find(p => p && p.lotId === lot.id);
                 const going = (b.readyDay != null && Number(game.world.day) < b.readyDay) || !!(prop && prop.underConstruction);
-                const tenant = b.tenant ? ` — let to ${b.tenant.name}` : '';
-                items.push({ type: 'disabled', label: `🏠 ${b.kind === 'house' ? 'Your house to let' : (b.name || 'Your building')} ${going ? 'is going up' : 'stands here'}${tenant}` });
+                const tenant = b.rooms ? ` — ${(b.lodgers || []).length} of ${b.rooms} rooms let` : b.tenant ? ` — let to ${b.tenant.name}` : '';
+                items.push({ type: 'disabled', label: `🏠 ${b.rooms ? `Your ${String(b.name || 'tenement').toLowerCase()}` : b.kind === 'house' ? 'Your house to let' : (b.name || 'Your building')} ${going ? 'is going up' : 'stands here'}${tenant}` });
             } else {
                 items.push({ type: 'action', action: 'lot_build', label: 'Build on this Lot', icon: '🏗️', desc: 'A farm, workshop, shop, tavern... within the lot', lot });
                 items.push({ type: 'action', action: 'lot_house', label: `Build a House to Let (${Utils.formatGold(LotBook.houseCost(s.type))}g)`, icon: '🏠', desc: `Stands in ${LotBook.houseDays(s.type)} days; a tenant pays you rent each day`, lot });
+                // (a tenement or row houses, let by the room: systems/lots.js, world/townHousing.js)
+                for (const t of Lots.tenementKinds(s)) {
+                    items.push({ type: 'action', action: 'lot_tenement', kind: t.id, label: `Build ${t.name} to Let (${Utils.formatGold(t.cost)}g)`, icon: t.id === 'tenement' ? '🏢' : '🏘️', desc: `${t.rooms} rooms, standing in ${t.days} days; lodgers pay rent for each`, lot });
+                }
             }
             items.push(PANEL_ITEM);
             return items;
@@ -72,7 +76,7 @@ export const InnerMapLots = {
         const items = [];
         if (!v) {
             items.push({ type: 'disabled', label: '🔑 Standing empty — to let or for sale' });
-            items.push({ type: 'action', action: 'vacancy_rent', label: `Rent it (${Utils.formatGold(LotBook.rentPerDay(s.type))}g a day)`, icon: '🔑', desc: 'Paid at each day\'s end. Miss it and you\'re out.', building });
+            items.push({ type: 'action', action: 'vacancy_rent', label: `Rent it (${Utils.formatGold(Lots.houseRent(s))}g a day)`, icon: '🔑', desc: 'Paid at each day\'s end. Miss it and you\'re out.', building });
             items.push({ type: 'action', action: 'vacancy_buy', label: `Buy it (${Utils.formatGold(LotBook.salePrice(s.type))}g)`, icon: '💰', desc: 'Yours outright', building });
         } else if (v.holder === 'player' && v.status === 'rented') {
             items.push({ type: 'disabled', label: `🔑 You rent it at ${Utils.formatGold(v.rent)}g a day` });
@@ -100,6 +104,9 @@ export const InnerMapLots = {
                 return true;
             case 'lot_house':
                 note(Lots.buildHouseOnLot(game.player, game.world, s, item.lot.id), '🏗️ A House Going Up');
+                return true;
+            case 'lot_tenement':
+                note(Lots.buildTenementOnLot(game.player, game.world, s, item.lot.id, item.kind), '🏗️ Going Up');
                 return true;
             case 'lot_panel':
                 if (typeof ActionMenu.showTownLots === 'function') ActionMenu.showTownLots(game);

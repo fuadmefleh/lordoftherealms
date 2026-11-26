@@ -37,6 +37,9 @@ const topLevel = [
     'merchantCaravans',
     'merchantPrince',
     'labour',
+    // How the poor of each town get by, and how many its houses hold (systems/townPoor.js, world/townHousing.js)
+    'townPoor',
+    'townHousing',
     'migration',
     'guilds',
     'priceKnowledge',
@@ -180,6 +183,8 @@ const topLevel = [
     // What the spare hours of each day go on (player/standingOrders.js)
     'standingOrders',
     'riverDrift',
+    // Goods left on the ground, per hex: dropped, abandoned, taken, rotting (systems/groundGoods.js)
+    'groundGoods',
     // Caves and mines: the rock cut by hand, its geology, the bigger crags of terrainGen 9 (world/innerMap/mines.js)
     'mining',
     // River boats, fishing rights, salting and spring floods (systems/riverBoats.js, systems/riverLife.js)
@@ -232,6 +237,8 @@ const topLevel = [
     // Companions lost on the road with the player (systems/vanishings.js)
     'vanishings',
     'townMemory',
+    // Newcomers' camps on a town's outskirts, and the new streets laid out for them (world/townGrowth.js, systems/arrivalCamps.js)
+    'townGrowth',
     // Deplorable acts against a town: a poisoned well, a plague lie, a burnt granary, hoarded grain (systems/townCrimes.js)
     'townCrimes',
     // Water: thirst, waterskins, the towns' wells, foul and dry wells, water in sieges, armies and ships (systems/water.js, player/thirst.js)

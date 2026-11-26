@@ -32,6 +32,8 @@ import { Economy } from '../world/economy.js';
 import { Laws } from './laws.js';
 import { Ledger } from './ledger.js';
 import { Utils } from '../core/utils.js';
+// (a town's crowding sets its rents; the tenements and row houses a lot may take: world/townHousing.js)
+import { TownHousing } from '../world/townHousing.js';
 
 const _num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const _day = world => _num(world && world.day, 0);
@@ -195,6 +197,121 @@ export const Lots = {
         return { success: true, cost, days, text: `Masons set to work on a house on your lot in ${settlement.name} (${Utils.formatGold(cost)}g). It stands in ${days} days, and goes to let as soon as it does.` };
     },
 
+    /**
+     * Raise a tenement or row houses on the player's own lot, to let by the
+     * room (data/townHousing.json player.kinds): gold now, standing after the
+     * builders' days; each room let to a lodger at the town's room rent.
+     */
+    buildTenementOnLot(player, world, settlement, lotId, kind = 'tenement') {
+        if (!player || !settlement) return { success: false, reason: 'There is no lot here.' };
+        const K = this.tenementKind(kind);
+        if (!K) return { success: false, reason: 'No such building.' };
+        if (!this.mayBuildTenement(settlement, kind)) return { success: false, reason: `${settlement.name} is too small a place for ${K.name.toLowerCase()}: a town's lots take them.` };
+        const ok = this.canBuildOnLot(settlement, lotId);
+        if (!ok.ok) return { success: false, reason: ok.reason };
+        const cost = this.tenementCost(settlement, kind);
+        if (_num(player.gold) < cost) return { success: false, reason: `Masons and timber for ${K.label || K.name.toLowerCase()} come to ${Utils.formatGold(cost)}g; you have ${Utils.formatGold(_num(player.gold))}g.` };
+        player.gold -= cost;
+        Ledger.record(player, 'townLand', -cost);
+        Economy.payTown(settlement, cost);
+        const days = Math.max(1, Math.round(_num((K.days || {})[settlement.type], 60)));
+        const rec = LotBook.lot(settlement, lotId);
+        rec.built = { type: kind, kind: 'house', name: K.name, by: 'player', readyDay: _day(world) + days, cost, let: true, tenant: null, rooms: Math.max(1, Math.round(_num(K.rooms, 6))), lodgers: [], dwelling: K.dwelling || kind };
+        return { success: true, cost, days, text: `Masons set to work on ${K.label || K.name.toLowerCase()} on your lot in ${settlement.name} (${Utils.formatGold(cost)}g): ${rec.built.rooms} rooms to let. It stands in ${days} days; lodgers take the rooms at about ${Utils.formatGold(this.roomRent(settlement))}g a day each.` };
+    },
+
+    tenementKind(kind) {
+        const P = TownHousing.config().player || {};
+        return (P.kinds && P.kinds[kind]) || null;
+    },
+
+    /** Kinds the player may raise here: [{ id, name, rooms, cost, days }] */
+    tenementKinds(settlement) {
+        const P = TownHousing.config().player || {};
+        return Object.entries(P.kinds || {}).filter(([id]) => this.mayBuildTenement(settlement, id)).map(([id, K]) => ({
+            id, name: K.name, rooms: _num(K.rooms), cost: this.tenementCost(settlement, id), days: Math.round(_num((K.days || {})[settlement.type], 60)),
+        }));
+    },
+
+    mayBuildTenement(settlement, kind) {
+        const K = this.tenementKind(kind);
+        if (!K || !settlement) return false;
+        const T = TownHousing.TYPES;
+        return T.indexOf(settlement.type) >= T.indexOf(K.minType || 'town');
+    },
+
+    tenementCost(settlement, kind) {
+        const K = this.tenementKind(kind);
+        return K ? Math.max(1, Math.round(_num((K.cost || {})[settlement && settlement.type], 500))) : 0;
+    },
+
+    /** A vacant house's daily rent in this town (dearer when it is crowded). */
+    houseRent(settlement) {
+        return Math.max(1, Math.round(LotBook.rentPerDay(settlement && settlement.type) * (settlement ? TownHousing.rentMult(settlement) : 1)));
+    },
+
+    /** A room's daily rent to a lodger (the town's rent × roomShare × its crowding). */
+    roomRent(settlement) {
+        const P = TownHousing.config().player || {};
+        const L = this.config().letting || {};
+        return Math.max(0.1, Utils.cents(LotBook.rentPerDay(settlement && settlement.type) * _num(L.rentMult, 1) * _num(P.roomShare, 0.35) * (settlement ? TownHousing.rentMult(settlement) : 1)));
+    },
+
+    /**
+     * A day of the player's rooms: lodgers come (the oftener the more
+     * crowded the town), pay the room's rent from the town's purse, now and
+     * then miss it or leave. -> the rent taken
+     */
+    _roomsDay(world, player, h, s, rec, day, book, notices) {
+        const P = TownHousing.config().player || {};
+        if (!Array.isArray(rec.lodgers)) rec.lodgers = [];
+        const rnd = _rng(`${day}|rooms|${s.name}|${s.q},${s.r}|${_ref(h)}`);
+        const crowd = TownHousing.crowd(s);
+        const pull = _num(P.tenantChance, 0.1) * Math.max(0.2, Math.min(3, 1 + (crowd - 0.95) * 6));
+        const rooms = Math.max(1, _num(rec.rooms, 1));
+        // (lodgers come one at a time, a couple a day at most)
+        for (let i = 0; i < 2 && rec.let && rec.lodgers.length < rooms; i++) {
+            if (rnd() >= pull) break;
+            rec.lodgers.push({ name: _tenantName(s, rnd, this.config().ai || {}), since: day, rent: this.roomRent(s), owed: 0 });
+            if (rec.lodgers.length === rooms) notices.push({ icon: '🔑', title: 'Every Room Let', text: `Every room of your ${String(rec.name || 'tenement').toLowerCase()} in ${s.name} is let.`, type: 'info' });
+        }
+        let taken = 0;
+        const keep = [];
+        for (const t of rec.lodgers) {
+            if (t.since === day) { keep.push(t); continue; }
+            if (rnd() < _num(P.leaveChance, 0.01) * (crowd < 0.9 ? 3 : 1)) continue;
+            if (rnd() < _num(P.missChance, 0.04)) {
+                t.owed = _num(t.owed) + _num(t.rent);
+                if (t.owed > _num(t.rent) * 8) continue;
+                keep.push(t);
+                continue;
+            }
+            const due = _num(t.rent) + Math.min(_num(t.owed), _num(t.rent));
+            const paid = Utils.cents(Economy.drawTown(s, due));
+            t.owed = Math.max(0, _num(t.owed) - Math.max(0, paid - _num(t.rent)));
+            taken += paid;
+            keep.push(t);
+        }
+        rec.lodgers = keep;
+        if (taken > 0) {
+            player.gold = _num(player.gold) + taken;
+            Ledger.record(player, 'townRentIncome', taken);
+            book.collected += taken;
+            const k = `${h.q},${h.r}|${_ref(h)}`;
+            if (!book.from.includes(k)) book.from.push(k);
+        }
+        return taken;
+    },
+
+    /** Put every lodger out of the player's rooms. */
+    clearLodgers(player, world, q, r, ref) {
+        const lr = this._letRecord(world, _findHolding(player, q, r, ref));
+        if (!lr || !Array.isArray(lr.rec.lodgers) || !lr.rec.lodgers.length) return { success: false, reason: 'No lodgers there.' };
+        const n = lr.rec.lodgers.length;
+        lr.rec.lodgers = [];
+        return { success: true, text: `${n} lodger${n === 1 ? '' : 's'} put out of your ${String(lr.rec.name || 'rooms').toLowerCase()} in ${lr.s.name}.` };
+    },
+
     // ──────────── VACANT HOUSES ────────────
 
     rentHouse(player, world, settlement, key, name = 'the house') {
@@ -203,7 +320,7 @@ export const Lots = {
         if (book.vacancies[key]) return { success: false, reason: 'Someone has taken it already.' };
         const law = Laws.mayHoldLand(world, player, settlement.kingdom);
         if (!law.ok) return { success: false, reason: law.reason };
-        const rent = LotBook.rentPerDay(settlement.type);
+        const rent = this.houseRent(settlement);
         if (_num(player.gold) < rent) return { success: false, reason: `The first day's rent is ${Utils.formatGold(rent)}g.` };
         player.gold -= rent;
         Ledger.record(player, 'townRent', -rent);
@@ -297,7 +414,7 @@ export const Lots = {
     /** A tenant's daily rent in a town. */
     rentFor(settlement) {
         const L = this.config().letting || {};
-        return Math.max(1, Math.round(LotBook.rentPerDay(settlement && settlement.type) * _num(L.rentMult, 1)));
+        return Math.max(1, Math.round(LotBook.rentPerDay(settlement && settlement.type) * _num(L.rentMult, 1) * (settlement ? TownHousing.rentMult(settlement) : 1)));
     },
 
     // ──────────── SELLING ────────────
@@ -388,9 +505,11 @@ export const Lots = {
                 if (!b) {
                     row.canBuildHouse = true;
                     row.houseCost = LotBook.houseCost(s.type);
+                    row.tenements = this.tenementKinds(s);
                     row.canSell = true;
                 } else if (b.kind === 'house') {
-                    row.what = 'a house to let';
+                    row.what = _num(b.rooms) > 0 ? `${String(b.name || 'a tenement').toLowerCase()}: ${b.rooms} rooms to let` : 'a house to let';
+                    if (_num(b.rooms) > 0) { row.rooms = b.rooms; row.lodgers = Array.isArray(b.lodgers) ? b.lodgers.length : 0; row.roomRent = this.roomRent(s); }
                     row.ready = b.readyDay == null || day >= b.readyDay;
                     row.state = row.ready ? 'built' : 'building';
                     row.daysLeft = row.ready ? 0 : b.readyDay - day;
@@ -496,6 +615,8 @@ export const Lots = {
         const lr = this._letRecord(world, h);
         if (!lr || !lr.ready) return;
         const { s, rec } = lr;
+        // (a tenement or row houses: let by the room)
+        if (_num(rec.rooms) > 0) { this._roomsDay(world, player, h, s, rec, day, book, notices); return; }
         const L = this.config().letting || {};
         const rnd = _rng(`${day}|let|${s.name}|${s.q},${s.r}|${_ref(h)}`);
         const where = `your house in ${s.name}`;
@@ -571,7 +692,10 @@ export const Lots = {
                     const price = LotBook.lotPrice(s.type, geo.w, geo.h);
                     const rival = rivals.find(r => r.kingdomId === s.kingdom && _num(r.gold) >= price + 200);
                     const builds = Array.isArray(A.builds) && A.builds.length ? A.builds : ['house'];
-                    const type = builds[Math.floor(rnd() * builds.length)];
+                    let type = builds[Math.floor(rnd() * builds.length)];
+                    // (a house goes up as the town builds now: row houses or a tenement where ground is scarce — world/townHousing.js)
+                    let dwelling = null;
+                    if (type === 'house' && TownHousing.on()) { dwelling = TownHousing.nextDwellingType(s); type = TownHousing.designOf(dwelling); }
                     let holder, holderName;
                     if (rival) {
                         rival.gold -= price;
@@ -584,7 +708,7 @@ export const Lots = {
                         holderName = names[Math.floor(rnd() * names.length)];
                         holder = `npc:${holderName}`;
                     }
-                    LotBook.of(s).lots[id] = { holder, holderName, price, day, built: { type, by: holder, readyDay: day + _num(A.buildDays, 20) } };
+                    LotBook.of(s).lots[id] = { holder, holderName, price, day, built: { type, by: holder, readyDay: day + _num(A.buildDays, 20), ...(dwelling ? { dwelling } : {}) } };
                 }
             }
             // Houses taken and left (only where the town's houses are known)
@@ -594,7 +718,7 @@ export const Lots = {
                 if (!v && rnd() < _num(A.rentChance, 0.02)) {
                     const names = Array.isArray(A.buyers) && A.buyers.length ? A.buyers : ['a townsman'];
                     const who = names[Math.floor(rnd() * names.length)];
-                    LotBook.of(s).vacancies[key] = { status: 'rented', holder: `npc:${who}`, holderName: who, rent: LotBook.rentPerDay(s.type), day };
+                    LotBook.of(s).vacancies[key] = { status: 'rented', holder: `npc:${who}`, holderName: who, rent: this.houseRent(s), day };
                 } else if (v && v.holder !== 'player' && v.status === 'rented' && rnd() < _num(A.leaveChance, 0.006)) {
                     delete book.vacancies[key];
                 }

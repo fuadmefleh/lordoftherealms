@@ -121,7 +121,9 @@ export const PixelIcons = {
     _pos(cell) {
         const m = manifest();
         const cols = m.cols;
-        const rows = Math.ceil(Object.keys(m.icons).length / cols) || 1;
+        // (the sheet's rows counted once per manifest: this runs for every icon swapped in)
+        if (this._rowsOf !== m) { this._rowsOf = m; this._rows = Math.ceil(Object.keys(m.icons).length / cols) || 1; }
+        const rows = this._rows;
         const c = cell % cols, r = Math.floor(cell / cols);
         const x = cols > 1 ? (c / (cols - 1)) * 100 : 0;
         const y = rows > 1 ? (r / (rows - 1)) * 100 : 0;

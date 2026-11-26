@@ -60,6 +60,7 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementWealth } from '../world/settlementWealth.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { WorldEvents } from '../world/worldEvents.js';
+import { TownGrowth } from '../world/townGrowth.js';
 import { Townsfolk } from './townsfolk.js';
 import { Crises } from './crises.js';
 import { Illness } from './illness.js';
@@ -426,8 +427,10 @@ export const Migration = {
             if (n >= _num(C.columns.min, 25) && far >= _num(C.columns.minDistance, 2) && cols < _num(C.columns.max, 14)) {
                 Migration._spawnColumn(world, from, to, n, kind, why, moved, day);
                 cols++;
-            } else if (moved.length) {
-                Migration._place(world, to, moved, from, day, player);
+            } else {
+                if (moved.length) Migration._place(world, to, moved, from, day, player);
+                // (come in: too many at once and they camp outside the town, systems/arrivalCamps.js)
+                TownGrowth.noteArrival(to, n, day, from.name, kind);
             }
             // Grants to the settlers in the player's towns
             if (player && kind !== 'return' && week.ctx.ruled.has(_key(to.q, to.r)) && _num(settlers.cost) > 0) {
@@ -828,6 +831,8 @@ export const Migration = {
         }
         const placed = Array.isArray(u.households) ? Migration._place(world, to, u.households, null, day, player) : 0;
         u.households = null;
+        // (a whole column at once: a camp outside the town until they are housed, systems/arrivalCamps.js)
+        TownGrowth.noteArrival(to, _num(u.population), day, u.fromName, u.migKind);
         const mine = ruled.has(_key(to.q, to.r));
         const here = player && player.q === to.q && player.r === to.r;
         if (player && (mine || here)) {

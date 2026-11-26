@@ -42,6 +42,15 @@
         "fitCost": 250, "tavernRaid": 0.02, "seizeShare": 1, "tavernFine": 80, "tavernHeat": 3
     },
     "laws": {
+        "poorRelief": {
+            "name": "Poor Relief", "icon": "🥖",
+            "desc": "Who feeds the poor when wages and savings fail them (systems/townPoor.js)? Under charity alone, the church, the guilds, the noble houses and the passers-by give what they will; a poor rate makes the towns' burghers pay for their poor out of the town's purse; the crown's dole adds the royal treasury besides (booked on the dole line). A town may keep a rate of its own where the realm keeps none.",
+            "options": {
+                "charity": { "label": "Charity alone", "desc": "The church's alms, the guilds' funds, the lords' largesse and the beggar's bowl.", "share": 0.55, "stability": 0 },
+                "rate": { "label": "A poor rate", "desc": "Each town's burghers pay a rate for their poor in hard times: fewer go hungry, the purse is drawn on.", "share": 0.33, "stability": 0 },
+                "crownDole": { "label": "The crown's dole", "desc": "The poor rate, and the royal treasury pays what the towns cannot: the realm's poor are fed at the crown's cost.", "share": 0.12, "stability": 1 }
+            }
+        },
         "privatePrisons": {
             "name": "Private Prisons", "icon": "⛓️",
             "desc": "May a private citizen keep a prison camp, and put those they take to work?",

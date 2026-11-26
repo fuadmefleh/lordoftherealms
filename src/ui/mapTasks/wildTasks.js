@@ -35,6 +35,7 @@
 import { InnerMap } from '../../world/innerMap.js';
 import { CustomObjects } from '../../world/customObjects.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
+import { InnerMapGroundGoods } from '../innerMapGroundGoods.js';
 import { MapTasks } from '../../systems/mapTasks.js';
 import { WildTasks as Rules } from '../../systems/wildTasks.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
@@ -118,7 +119,9 @@ function _dropArrow(at, from, item = 'arrows') {
     for (const [a, b] of tries) {
         const t = InnerMap.getTile(Math.round(at.q) + a, Math.round(at.r) + b);
         if (!t || !t.subTerrain || !t.subTerrain.passable || t._wet || t._sea || t.customObject || t.customBuilding) continue;
-        if (t.groundItem && t.groundItem.itemId !== item) continue;
+        if (t.groundItem && (t.groundItem.itemId !== item || (t.groundItem.pileId && t.groundItem.kind !== 'arrows'))) continue;
+        // (kept by the world as the player's pile, stacked with the spent shots there: ui/innerMapGroundGoods.js)
+        if (InnerMapGroundGoods.lay(null, t, item, 1, { kind: 'arrows', by: 'player', byName: 'you', src: 'arrows', icon: '🏹' })) return t;
         if (t.groundItem) t.groundItem.quantity = (t.groundItem.quantity || 0) + 1;
         else t.groundItem = { itemId: item, name: item === 'bolts' ? 'Crossbow Bolts' : 'Arrows', icon: '🏹', quantity: 1, placedBy: 'hunt' };
         return t;

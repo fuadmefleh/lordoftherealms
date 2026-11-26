@@ -10,6 +10,8 @@ import { CARD } from './uiKit.js';
 import { tradesHtml } from './trades.js';
 // (the town's comings and goings and why: systems/migration.js)
 import { migrationHtml } from './migration.js';
+// (how the poor get by, and the houses: systems/townPoor.js, world/townHousing.js)
+import { poorHtml, poorLine } from './townPoor.js';
 import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -36,6 +38,8 @@ export function peopleLine(settlement, day = null) {
     if (craft) parts.push(`artisans ${Utils.formatGold(craft.wage)}g/day`);
     if (sum.refugees >= 20) parts.push(`<span style="color:#e8a040;">${sum.refugees} refugees</span>`);
     if (sum.strike) parts.push('<span style="color:#e74c3c;">on strike</span>');
+    const pl = poorLine(settlement);
+    if (pl) parts.push(pl);
     return parts.join(' · ');
 }
 
@@ -71,6 +75,9 @@ export function peopleHtml(game, settlement, q, r) {
     html += `<div style="margin-top:6px;">Crime <b style="color:${crimeColor};">${Math.round(sum.crime * 100)}</b> · danger ${Math.round(sum.danger * 100)}${sum.refugees ? ` · ${sum.refugees} refugees` : ''} · last week ${sum.moved.in || 0} came, ${sum.moved.out || 0} left</div>`;
     html += `<div style="${NOTE}">A town short of hands makes and reaps less, and its wages climb; idle hands breed thieves and unrest and sour the mood.</div></div>`;
 
+    // ── The poor and the houses ──
+    html += poorHtml(game, settlement);
+
     // ── Comings and goings: the trend, who came and left and why ──
     html += migrationHtml(game, settlement);
 
@@ -99,6 +106,7 @@ export function peopleHtml(game, settlement, q, r) {
         html += `<div style="${CARD}"><b>Word on the roads</b><div style="${NOTE}">`;
         html += news.map(n => n.kind === 'refugees' ? `Day ${n.day}: ${n.n} fled ${esc(n.place)} for ${esc(n.to)}.`
             : n.kind === 'strike' ? `Day ${n.day}: the artisans of ${esc(n.place)} struck.`
+                : n.kind === 'hunger' ? `Day ${n.day}: ${n.n} of the poor of ${esc(n.place)} died of hunger.`
                 : `Day ${n.day}: ${esc(n.place)} is booming.`).join('<br>');
         html += '</div></div>';
     }

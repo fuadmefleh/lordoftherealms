@@ -87,7 +87,9 @@ describe('the Inventory window', () => {
         // (the bar fills itself until arranged, so bread is already on it: take off, or move)
         expect(html).toContain('data-ui-act="invHotbarUnassign"');
         expect(count(html, /data-ui-act="invHotbarAssign"/g)).toBe(7);
-        expect(html).toMatch(/Only on foot in a place/); // drop is off on the world map
+        // (drop and throw away work on the world map too: an amount chooser)
+        expect(html).toContain('data-ui-act="invAmount" data-ui-args="[&quot;bread&quot;,&quot;drop&quot;]"');
+        expect(html).toContain('data-ui-act="invAmount" data-ui-args="[&quot;bread&quot;,&quot;toss&quot;]"');
         ui.invSelect('holy_water');
         expect(last()).toContain('data-ui-act="useTreasure"');
         ui.invSelect('iron_sword');
@@ -146,6 +148,48 @@ describe('the Inventory window', () => {
         ui.invHotbarAuto();
         expect(game.player.hotbar.manual).toBe(false);
         clean(last());
+    });
+
+    it('drops an amount at the roadside, throws away (asking first for a valuable stack), and the worn piece stays on', async () => {
+        const { GroundGoods } = await import('../systems/groundGoods.js');
+        const { groundGoodsHtml } = await import('../ui/ui/groundGoodsPanel.js');
+        const p = game.player;
+        p.inventory.bread = 12;
+        ui.invAmount('bread', 'drop');
+        const chooser = last();
+        for (const n of [1, 5, 10, 6, 12]) expect(chooser).toContain(`data-ui-act="invDrop" data-ui-args="[&quot;bread&quot;,${n}]"`);
+        expect(chooser).toContain('id="invAmtN"');
+        ui.invDrop('bread', 5);
+        expect(p.inventory.bread).toBe(7);
+        const pile = GroundGoods.at(game.world, p.q, p.r).find(x => x.good === 'bread');
+        expect(pile.qty).toBe(5);
+        expect(pile.by).toBe('player');
+        expect(notes.join(' ')).toMatch(/Left at the Roadside/);
+        // The hex's panel lists it, and picks some up again
+        const html = groundGoodsHtml(game, p.q, p.r);
+        clean(html);
+        expect(html).toContain('data-ui-act="ggPick"');
+        ui.ggPick(p.q, p.r, pile.id, 2);
+        expect(p.inventory.bread).toBe(9);
+        expect(pile.qty).toBe(3);
+        // Throw away: a cheap few go at once, booked as destroyed
+        const before = Number(GroundGoods.state(game.world).books.destroyed.bread) || 0;
+        ui.invToss('bread', 2);
+        expect(p.inventory.bread).toBe(7);
+        expect(GroundGoods.state(game.world).books.destroyed.bread).toBe(before + 2);
+        // A valuable stack asks first
+        p.inventory.gems = 2;
+        ui.invToss('gems', 2);
+        expect(p.inventory.gems).toBe(2);
+        expect(last()).toMatch(/Throw away for good\?/);
+        ui.invToss('gems', 2, true);
+        expect(p.inventory.gems).toBeUndefined();
+        // The sword worn: it can't be set down until put away
+        p.inventory.iron_sword = 1;
+        Arms.equip(p, 'iron_sword');
+        ui.invSelect('iron_sword');
+        expect(last()).toMatch(/put it away first/);
+        expect(GroundGoods.drop(game.world, p, 'iron_sword', 1, { q: p.q, r: p.r }).ok).toBe(false);
     });
 
     it('toggles: I opens it, and again closes it', () => {

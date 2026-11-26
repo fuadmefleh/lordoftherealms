@@ -11,6 +11,7 @@ import { InnerMap } from '../world/innerMap.js';
 import { Terrain } from '../world/terrain.js';
 import { Utils } from '../core/utils.js';
 import { ActionMenu } from './actionMenu.js';
+import { ArrivalCamps } from '../systems/arrivalCamps.js';
 import { InnerMapEscort } from './innerMapEscort.js';
 import { InnerMapPets } from './innerMapPets.js';
 import { InnerMapHawk } from './innerMapHawk.js';
@@ -36,6 +37,7 @@ import { InnerMapGraves } from './innerMapGraves.js';
 import { InnerMapPlague } from './innerMapPlague.js';
 import { InnerMapTownWorld } from './innerMapTownWorld.js';
 import { InnerMapScavengers } from './innerMapScavengers.js';
+import { InnerMapGroundGoods } from './innerMapGroundGoods.js';
 import { InnerMapBrawls } from './innerMapBrawls.js';
 import { InnerMapLocks } from './innerMapLocks.js';
 import { InnerMapRoomLocks } from './innerMapRoomLocks.js';
@@ -415,6 +417,15 @@ Object.assign(InnerMapRenderer, {
             menuItems.push(...InnerMapScaffold.menuItems(game, customObjDef, objAnchorQ, objAnchorR));
             // A head on a spike, a gibbet, a body on the gallows: whose, and cut it down (ui/innerMapDisplays.js)
             menuItems.push(...InnerMapDisplays.menuItems(game, customObjDef, objAnchorQ, objAnchorR));
+            // A newcomers' camp's tent, fire or gear: who camps there, and the camp's panel (ui/actionMenu/arrivalCamp.js)
+            const _campTile = InnerMap.getTile(objAnchorQ, objAnchorR);
+            if (_campTile && _campTile.customObject && _campTile.customObject.arrivalCamp) {
+                const cs = ArrivalCamps.summary(game.world.getTile(game.player.q, game.player.r).settlement);
+                if (cs) {
+                    menuItems.push({ type: 'disabled', label: `⛺ The newcomers' camp: ${cs.under} from ${cs.from || 'afar'} under canvas, ${cs.building} house${cs.building === 1 ? '' : 's'} going up` });
+                    menuItems.push({ type: 'action', action: 'camp_panel', label: "The Newcomers' Camp", icon: '⛺', desc: 'how their houses come on; give food, coin or timber; pay the builders' });
+                }
+            }
             // The fighting pit's fence and gate: tonight's bouts, the pit's panel (ui/innerMapPit.js)
             menuItems.push(...InnerMapPit.menuItems(game, objAnchorQ, objAnchorR));
             // A tree to fell or a stump to grub out: one order, with how many blows it will
@@ -506,7 +517,11 @@ Object.assign(InnerMapRenderer, {
         }
 
         // ── Ground item pick-up ──
-        if (tile.groundItem && !building) {
+        if (tile.groundItem && tile.groundItem.pileId && !building) {
+            // Goods the world keeps on this hex: all, one or half (ui/innerMapGroundGoods.js)
+            if (menuItems.length > 0) menuItems.push({ type: 'separator' });
+            menuItems.push(...InnerMapGroundGoods.menuItems(game, q, r));
+        } else if (tile.groundItem && !building) {
             if (menuItems.length > 0) menuItems.push({ type: 'separator' });
             const gi = tile.groundItem;
             menuItems.push({ type: 'header', label: `${gi.icon} ${gi.name}` });
@@ -1159,6 +1174,7 @@ Object.assign(InnerMapRenderer, {
         if (/^memory_/.test(action) && InnerMapMemory.handle(game, item)) return;
         if (/^scaffold_/.test(action) && InnerMapScaffold.handle(game, item)) return;
         if (/^gibbet_/.test(action) && InnerMapDisplays.handle(game, item)) return;
+        if (action === 'camp_panel') { ActionMenu.showArrivalCamp(game); return; }
         if (/^pit_/.test(action) && InnerMapPit.handle(game, item)) return;
         if (/^roomlock_/.test(action) && InnerMapRoomLocks.handle(game, item)) return;
         if (action === 'lock_door' && InnerMapLocks.handle(game, item, q, r, it => this._handleContextAction(game, it, q, r))) return;
@@ -1664,6 +1680,9 @@ Object.assign(InnerMapRenderer, {
 
                 break;
             }
+            case 'gg_pickup':
+                InnerMapGroundGoods.handle(game, item);
+                break;
             case 'pickup_ground_item': {
                 const gTile = InnerMap.getTile(item.groundItemTileQ, item.groundItemTileR);
                 if (gTile && gTile.groundItem && gTile.groundItem.gold) {

@@ -35,6 +35,8 @@ import { catalogOf, buildEntries, filterSort, categoryCounts, defaultDir } from 
 import { rowList, sectionHead, card, price, esc } from '../actionMenu/uiKit.js';
 import { PlayerInventory, PlayerEconomy, Treasures, InnerMap } from './_imports.js';
 import { Utils } from '../../core/utils.js';
+import { GroundGoods } from '../../systems/groundGoods.js';
+import { InnerMapGroundGoods } from '../innerMapGroundGoods.js';
 
 export const INVENTORY_TITLE = 'Inventory';
 
@@ -374,13 +376,18 @@ export function itemDetailHtml(game, e, st = {}) {
     rows.push(slot >= 0
         ? { icon: '⌨️', name: 'Take off the hotbar', desc: `It is in slot ${slot + 1}`, attrs: `data-ui-act="invHotbarUnassign" data-ui-args="${_args([id])}"` }
         : { icon: '⌨️', name: 'Put on the hotbar', desc: 'Pick a slot below, or drag the tile onto one', attrs: `data-ui-act="invHotbarPick" data-ui-args="${_args([id])}"` });
-    // Drop: on the ground where you stand (the street map), as the hotbar places goods
-    const canDrop = !!(InnerMap && InnerMap.active);
-    const dropWhy = !canDrop ? 'Only on foot in a place (the street map) — there is ground to set it on' : (worn ? 'Put it away first' : null);
-    rows.push(dropWhy
-        ? { icon: '⬇️', name: e.qty > 1 ? 'Drop one' : 'Drop it', off: true, why: dropWhy }
-        : { icon: '⬇️', name: e.qty > 1 ? 'Drop one' : 'Drop it', desc: 'Set it on the ground beside you', attrs: `data-ui-act="invDrop" data-ui-args="${_args([id, 1])}"` });
-    if (e.qty > 1 && !dropWhy) rows.push({ icon: '⏬', name: 'Drop them all', desc: `All ${e.qty} on the ground beside you`, attrs: `data-ui-act="invDrop" data-ui-args="${_args([id, e.qty])}"` });
+    // Drop… and Throw away…: an amount picked below (systems/groundGoods.js — set down, the world keeps
+    // it on this hex: on the street map beside you, on the world map at the roadside; thrown away, gone)
+    const spare = GroundGoods.spare(player, id);
+    const onStreet = !!(InnerMap && InnerMap.active);
+    const keepWhy = spare > 0 ? null : (worn ? 'You are wearing it: put it away first' : 'None to spare');
+    const where = onStreet ? 'on the ground beside you' : 'here at the roadside, for whoever comes by';
+    rows.push(keepWhy
+        ? { icon: '⬇️', name: 'Drop…', off: true, why: keepWhy }
+        : { icon: '⬇️', name: 'Drop…', desc: `Set ${spare > 1 ? 'some or all' : 'it'} down ${where}${worn ? ' (the worn one stays on)' : ''}`, attrs: `data-ui-act="invAmount" data-ui-args="${_args([id, 'drop'])}"` });
+    rows.push(keepWhy
+        ? { icon: '🗑️', name: 'Throw away…', off: true, why: keepWhy }
+        : { icon: '🗑️', name: 'Throw away…', desc: 'Break it, burn it, bury it: gone for good', attrs: `data-ui-act="invAmount" data-ui-args="${_args([id, 'toss'])}"` });
     rows.push({ icon: '🎁', name: 'Give', desc: 'Talk to someone and offer it as a gift' });
 
     let pick = '';
@@ -392,26 +399,40 @@ export function itemDetailHtml(game, e, st = {}) {
             return `<button type="button" class="inv-d-slot${here ? ' active' : ''}${other ? ' taken' : ''}" data-ui-act="invHotbarAssign" data-ui-args="${_args([id, v.index])}" title="${esc(here ? `In slot ${v.index + 1}` : (other ? `Slot ${v.index + 1}: ${other} (they swap)` : `Slot ${v.index + 1}: empty`))}">${v.index + 1}</button>`;
         }).join('')}</div></div>`;
     }
-    return card(body) + rowList(rows) + pick;
+    return card(body) + rowList(rows) + _amountHtml(player, id, e, st) + pick;
 }
 
-/** Where to set a dropped good on the street map: the stack beside you of the same good, or a free tile near. */
-function _dropSpot(itemId) {
-    const pq = InnerMap.playerInnerQ, pr = InnerMap.playerInnerR;
-    if (!Number.isFinite(pq) || !Number.isFinite(pr)) return null;
-    const spots = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
-    let free = null;
-    for (const [dq, dr] of spots) {
-        const t = InnerMap.getTile(pq + dq, pr + dr);
-        if (!t || !t.subTerrain || t.subTerrain.passable === false || t._wet || t._sea) continue;
-        if (t.building || t.buildingInfo || t.customObject || t.customObjectPart) continue;
-        if (t.groundItem) {
-            if (t.groundItem.itemId === itemId && t.groundItem.placedBy === 'player' && !t.groundItem.gold) return t;
-            continue;
-        }
-        if (!free) free = t;
+const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
+/** The amount chooser under the card (Drop… / Throw away…): 1, 5, 10, half, all or a number; a valuable stack thrown away asks again. */
+function _amountHtml(player, id, e, st) {
+    const a = st.amount;
+    if (!a || a.id !== id) return '';
+    const spare = GroundGoods.spare(player, id);
+    if (!(spare > 0)) return '';
+    const toss = a.mode === 'toss';
+    const verb = toss ? 'Throw away' : 'Drop';
+    const act = toss ? 'invToss' : 'invDrop';
+    const warn = [];
+    const caution = GroundGoods.caution(player, id);
+    if (caution) warn.push(caution);
+    if (Treasures.info(id)) warn.push('A treasure: there may be no other like it.');
+    if (a.confirm && a.confirm.n > 0) {
+        const n = a.confirm.n;
+        return `<div class="inv-d-pick inv-d-amt"><div class="inv-d-pick-head">Throw away for good?</div>`
+            + `<p class="inv-d-desc">${esc(`${n} ${e.name}`)} worth about <b>${price(GroundGoods.worth(player, id, n))}</b> — destroyed, not left for anyone.${warn.length ? ` ${esc(warn.join(' '))}` : ''}</p>`
+            + `<div class="inv-d-amt-row"><button type="button" class="inv-d-slot inv-d-amt-danger" data-ui-act="invToss" data-ui-args="${_args([id, n, true])}">Yes, throw ${n} away</button>`
+            + `<button type="button" class="inv-d-slot" data-ui-act="invAmount" data-ui-args="${_args([id, 'toss'])}">No</button></div></div>`;
     }
-    return free;
+    const opts = [];
+    const add = (label, n) => { if (n >= 1 && n <= spare && !opts.some(o => o.n === n)) opts.push({ label, n }); };
+    add('1', 1); add('5', 5); add('10', 10); add(`Half (${Math.floor(spare / 2)})`, Math.floor(spare / 2)); add(`All (${spare})`, spare);
+    return `<div class="inv-d-pick inv-d-amt"><div class="inv-d-pick-head">${verb} how many? <small>(of ${spare}${spare < e.qty ? ' to spare' : ''})</small></div>`
+        + (warn.length ? `<p class="inv-d-desc inv-d-amt-warn">⚠️ ${esc(warn.join(' '))}</p>` : '')
+        + `<div class="inv-d-amt-row">${opts.map(o => `<button type="button" class="inv-d-slot" data-ui-act="${act}" data-ui-args="${_args([id, o.n])}">${esc(o.label)}</button>`).join('')}</div>`
+        + `<div class="inv-d-amt-row"><input type="number" id="invAmtN" class="inv-d-amt-n" min="1" max="${spare}" value="${Math.min(spare, Math.max(1, Math.floor(_num(a.n) || 1)))}" aria-label="How many">`
+        + `<button type="button" class="inv-d-slot" data-ui-act="invAmountGo" data-ui-args="${_args([id, a.mode])}">${verb}</button>`
+        + `<button type="button" class="inv-d-slot" data-ui-act="invAmount" data-ui-args="${_args([id, null])}">Cancel</button></div></div>`;
 }
 
 Object.assign(UI.prototype, {
@@ -467,6 +488,7 @@ Object.assign(UI.prototype, {
         const st = this._invState || {};
         st.selected = st.selected === itemId ? null : itemId;
         st.pick = null;
+        st.amount = null;
         this.showInventoryPanel();
     },
 
@@ -549,26 +571,71 @@ Object.assign(UI.prototype, {
         this.showInventoryPanel();
     },
 
-    /** Set `qty` of a good on the ground beside you (the street map only; picked up again from the tile's menu). */
+    /** Open (mode 'drop' | 'toss') or close (null) the amount chooser on a good's card. */
+    invAmount(itemId, mode = null) {
+        const st = this._invState || (this._invState = {});
+        st.selected = itemId;
+        st.amount = mode ? { id: itemId, mode } : null;
+        this.showInventoryPanel();
+    },
+
+    /** The chooser's number box: drop or throw away that many. */
+    invAmountGo(itemId, mode) {
+        const el = typeof document !== 'undefined' && document.getElementById ? document.getElementById('invAmtN') : null;
+        const n = Math.floor(Number(el && el.value) || 0);
+        if (!(n > 0)) { this.showNotification('🎒 How Many?', 'Put a number in the box first.', 'error'); return; }
+        if (mode === 'toss') this.invToss(itemId, n);
+        else this.invDrop(itemId, n);
+    },
+
+    /**
+     * Set `qty` of a good down: on the street map beside you, on the world map
+     * at the roadside of this hex. Either way the world keeps it (systems/groundGoods.js).
+     */
     invDrop(itemId, qty = 1) {
-        const player = this.game.player;
-        const inv = player.inventory || {};
-        const have = Number(inv[itemId]) || 0;
-        const n = Math.max(1, Math.min(have, Math.floor(Number(qty) || 1)));
-        if (!InnerMap.active) { this.showNotification('⬇️ Drop', 'There is no ground to set it on from here: walk into the place first.', 'error'); return; }
-        if (!(have > 0)) { this.showNotification('⬇️ Drop', 'You have none of that left.', 'error'); return; }
-        if (Arms.isArms(itemId) && Arms.isEquipped(player, itemId) && n >= have) { this.showNotification('⬇️ Drop', 'Put it away first.', 'error'); return; }
-        const tile = _dropSpot(itemId);
-        if (!tile) { this.showNotification('⬇️ Drop', 'There is no clear ground beside you to set it on.', 'error'); return; }
+        const game = this.game;
+        const player = game.player;
+        const spare = GroundGoods.spare(player, itemId);
+        const n = Math.max(1, Math.min(spare || 1, Math.floor(Number(qty) || 1)));
         const g = _goodOf(itemId) || {};
         const name = g.name || itemId.replace(/_/g, ' ');
-        Grades.take(player, itemId, n);
-        inv[itemId] = have - n;
-        if (inv[itemId] <= 0) delete inv[itemId];
-        if (tile.groundItem) tile.groundItem.quantity = (tile.groundItem.quantity || 1) + n;
-        else tile.groundItem = { itemId, name, icon: g.icon || '📦', quantity: n, placedBy: 'player' };
-        this.showNotification(`${g.icon || '📦'} Dropped`, `${n > 1 ? `${n} ${name}` : name} set down beside you. Pick ${n > 1 ? 'them' : 'it'} up from the ground's menu.`, 'info');
-        this.updateStats(player, this.game.world);
+        const what = n > 1 ? `${n} ${name}` : name;
+        let res;
+        if (InnerMap.active) {
+            res = InnerMapGroundGoods.dropAt(game, itemId, n);
+            if (res.ok) this.showNotification(`${g.icon || '📦'} Dropped`, `${what} set down beside you. Pick ${n > 1 ? 'them' : 'it'} up from the ground's menu — or someone else will.`, 'info');
+        } else {
+            res = GroundGoods.drop(game.world, player, itemId, n, { q: player.q, r: player.r, day: game.world.day });
+            if (res.ok) this.showNotification(`${g.icon || '📦'} Left at the Roadside`, `${what} left here. Pick ${n > 1 ? 'them' : 'it'} up again from Goods Left Here while ${n > 1 ? 'they lie' : 'it lies'} there.`, 'info');
+        }
+        if (!res.ok) { this.showNotification('⬇️ Drop', res.reason || 'You cannot set it down here.', 'error'); return; }
+        if (this._invState) this._invState.amount = null;
+        this.updateStats(player, game.world);
+        Hotbar.refresh();
+        this.showInventoryPanel();
+    },
+
+    /** Throw away `qty` of a good: destroyed, gone for good (a valuable stack asks first). */
+    invToss(itemId, qty = 1, confirmed = false) {
+        const game = this.game;
+        const player = game.player;
+        const spare = GroundGoods.spare(player, itemId);
+        const n = Math.max(1, Math.min(spare || 1, Math.floor(Number(qty) || 1)));
+        const st = this._invState || (this._invState = {});
+        const valuable = GroundGoods.worth(player, itemId, n) >= (Number(GroundGoods.config().confirmValue) || 40) || !!Treasures.info(itemId) || !!GroundGoods.caution(player, itemId);
+        if (valuable && !confirmed) {
+            st.selected = itemId;
+            st.amount = { id: itemId, mode: 'toss', confirm: { n } };
+            this.showInventoryPanel();
+            return;
+        }
+        const res = GroundGoods.throwAway(game.world, player, itemId, n);
+        if (!res.ok) { this.showNotification('🗑️ Throw Away', res.reason, 'error'); return; }
+        const g = _goodOf(itemId) || {};
+        const name = g.name || itemId.replace(/_/g, ' ');
+        this.showNotification('🗑️ Thrown Away', `${n > 1 ? `${n} ${name}` : name}: broken up and gone for good.`, 'info');
+        st.amount = null;
+        this.updateStats(player, game.world);
         Hotbar.refresh();
         this.showInventoryPanel();
     },

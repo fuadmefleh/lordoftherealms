@@ -18,6 +18,7 @@ import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { SeaPassage } from '../../systems/seaPassage.js';
 import { Literacy } from '../../systems/literacy.js';
 import { Migration } from '../../systems/migration.js';
+import { ArrivalCamps } from '../../systems/arrivalCamps.js';
 import { Plague } from '../../systems/plague.js';
 
 // '42% · ~37d' for a build under way (systems/construction.js)
@@ -266,6 +267,12 @@ Object.assign(UI.prototype, {
                     const R = top ? Migration.reasonDef(top.id) : null;
                     const why = R ? ` · ${top.in ? 'in' : 'out'}: ${R.short || top.id}` : '';
                     return `<div class="info-row" data-am-act="showTownPeople" data-am-args="[null, ${q}, ${r}]" style="cursor:pointer;" title="This year ${tr.yearIn} came and ${tr.yearOut} left"><span class="info-label">Trend</span><span class="info-value" style="color:${tr.color} !important;">${tr.label} ${pct >= 0 ? '+' : ''}${pct}%${why}</span></div>`;
+                })()}
+                ${(() => {
+                    // Newcomers camped outside with nowhere to live (systems/arrivalCamps.js)
+                    const cs = ArrivalCamps.summary(tile.settlement);
+                    if (!cs) return '';
+                    return `<div class="info-row" data-am-act="showArrivalCamp" data-am-args="[${q}, ${r}]" style="cursor:pointer;" title="The newcomers' camp: their houses, and how you can help"><span class="info-label">Camp</span><span class="info-value" style="color:#e8c070 !important;">⛺ ${cs.under} under canvas · ${cs.building} house${cs.building === 1 ? '' : 's'} going up</span></div>`;
                 })()}
                 ${(() => {
                     // Its culture and tongue, and how well you speak it (world/cultures.js, systems/languages.js)

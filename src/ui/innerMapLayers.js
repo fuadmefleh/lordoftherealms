@@ -6,6 +6,7 @@ import './innerMapLayers/authoredInterior.js';
 import './innerMapLayers/caves.js';
 import './innerMapLayers/groundCache.js';
 import './innerMapLayers/objectsBuildings.js';
+import './innerMapLayers/buildingDepth.js';
 import './innerMapLayers/entities.js';
 import './innerMapLayers/waterFx.js';
 import './innerMapLayers/surfaceFish.js';

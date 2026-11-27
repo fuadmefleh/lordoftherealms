@@ -99,6 +99,12 @@ export const ArrivalCamps = {
      */
     setSurveyor(fn) { _surveyor = typeof fn === 'function' ? fn : null; },
 
+    /** The town's map surveyed for its growth streets (the lots laid), or null with no surveyor or no map. */
+    survey(world, q, r) {
+        if (!_surveyor) return null;
+        try { return _surveyor(world, q, r); } catch (e) { return null; }
+    },
+
     /**
      * The day's reckoning for every town that has had arrivals or keeps a camp.
      * Run daily after the migration day (systems/labour.js). Adds to out.notices.
@@ -325,6 +331,8 @@ export const ArrivalCamps = {
     _newStreet(s, g, ctx) {
         const { day, world } = ctx;
         if (!TownGrowth.canLayStreet(s)) return null;
+        // (no ground left to the town — its hex, its walls, its neighbours: world/townLand.js)
+        if (!(TownHousing.landLeft(s) >= 1)) return null;
         if (g.noRoom != null && day - _num(g.noRoom) < Math.max(1, _num(TownGrowth.config().noRoomDays, 90))) return null;
         let st = TownGrowth.addStreet(s, day);
         let laid = null;
@@ -335,7 +343,7 @@ export const ArrivalCamps = {
         if (!st) { g.noRoom = day; return null; }
         delete g.noRoom;
         // The street's lots are building plots the town's housing counts (world/townHousing.js)
-        TownHousing.addPlots(s, st.lots.length);
+        TownHousing.addPlots(s, Math.min(st.lots.length, Math.max(0, TownHousing.landLeft(s))));
         if (ctx.told(s)) {
             const n = st.lots.length;
             ctx.out.notices.push(st.kind === 'infill'

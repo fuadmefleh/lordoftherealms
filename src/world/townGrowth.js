@@ -12,9 +12,10 @@
 //       camp:    { id, since, n, housed, from, hh: [{ ids, head, lot }], lots: [{ id, n, hh, ready }], next }
 //                                            the camp while it stands (systems/arrivalCamps.js runs it)
 //       cleared: { id, d, hub? }             the camp struck: its trodden ground grows back (fadeDays)
-//       streets: [{ id, name, d, lots: [id], kind?: 'infill', side? }]
+//       streets: [{ id, name, d, lots: [id], kind?: 'infill', side?, suburb? }]
 //                                            the streets laid out at the town's edge, in order
-//                                            (infill: plots among the town's yards, no lane of its own)
+//                                            (infill: plots among the town's yards, no lane of its own;
+//                                            suburb: a lane of its quarter outside the walls, systems/townSprawl.js)
 //       noRoom:  day                         the last survey found no room (none tried for noRoomDays)
 //   }
 //
@@ -256,10 +257,10 @@ export const TownGrowth = {
         return out;
     },
 
-    /** May the town lay out another street (its type's maxStreets)? */
+    /** May the town lay out another street for newcomers (its type's maxStreets; a suburb's streets, systems/townSprawl.js, apart)? */
     canLayStreet(settlement) {
         const max = Math.max(0, Math.floor(_num(TownGrowth.byType('maxStreets', settlement && settlement.type), 0)));
-        return TownGrowth.streets(settlement).length < max;
+        return TownGrowth.streets(settlement).filter(st => !st.suburb).length < max;
     },
 
     /**
@@ -400,7 +401,8 @@ export const TownGrowth = {
                 });
             }
             // What is left: infill on the town's gardens and yards, fronting a street
-            if (used < ids.length) {
+            // (never for a suburb's street: its houses stand outside the walls or not at all)
+            if (used < ids.length && !st.suburb) {
                 for (const l of TownGrowth._infill(tiles, G, center, w, dpt, ids.length - used, `${key}|${st.id}`)) {
                     const id = ids[used++];
                     TownGrowth._markLot(tiles, l, id);

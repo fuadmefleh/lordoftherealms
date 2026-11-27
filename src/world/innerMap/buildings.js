@@ -259,12 +259,15 @@ Object.assign(InnerMap, {
             // Mark anchor tile
             tiles[ar][aq].customBuilding = { defId: def.id };
 
-            // Mark the remaining footprint tiles as "part of building" and block them
+            // Mark the remaining tiles as "part of building"; only its ground footprint blocks,
+            // the storeys and roof above it are walked behind (world/customBuildings.js footprintOf)
+            const foot = CustomBuildings.footprint(def);
             for (let dr = bounds.minRow; dr <= bounds.maxRow; dr++) {
                 for (let dq = bounds.minCol; dq <= bounds.maxCol; dq++) {
                     if (dr === 0 && dq === 0) continue;
-                    tiles[ar + dr][aq + dq].customBuildingPart = { anchorQ: aq, anchorR: ar };
-                    tiles[ar + dr][aq + dq].subTerrain.passable = false;
+                    const blocks = !foot || foot.blocks(dq, dr);
+                    tiles[ar + dr][aq + dq].customBuildingPart = blocks ? { anchorQ: aq, anchorR: ar } : { anchorQ: aq, anchorR: ar, over: true };
+                    if (blocks) tiles[ar + dr][aq + dq].subTerrain.passable = false;
                 }
             }
             // Also block the anchor tile itself

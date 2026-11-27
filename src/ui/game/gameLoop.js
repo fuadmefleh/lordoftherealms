@@ -824,6 +824,19 @@ export function setupInputHandlers() {
     window.addEventListener('keyup', setRun, true);
     window.addEventListener('blur', () => { InnerMap._runHeld = false; });
 
+    // Hold Alt on the street map: every building's storeys and roof drop to a ghost, the ground
+    // plans, alleys and yards behind them showing (ui/innerMapLayers/buildingDepth.js). Alt alone
+    // is bound to nothing else (other keys only skip themselves while it is down); kept from the
+    // browser's menu, and let go when the window loses the keyboard (an Alt+Tab never sends the keyup)
+    const setXray = (e) => {
+        const on = !!e.altKey && !e.ctrlKey && !e.metaKey;
+        if (e.key === 'Alt' && InnerMap.active) e.preventDefault();
+        InnerMapRenderer._xrayHeld = on && InnerMap.active;
+    };
+    window.addEventListener('keydown', setXray, true);
+    window.addEventListener('keyup', setXray, true);
+    window.addEventListener('blur', () => { InnerMapRenderer._xrayHeld = false; });
+
     // Keyboard shortcut: M to cycle map modes
     window.addEventListener('keydown', (e) => {
         const tag = e.target && e.target.tagName;

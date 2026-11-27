@@ -53,6 +53,7 @@ import { Laws } from './laws.js';
 import { Ledger } from './ledger.js';
 import { NpcMemory } from './npcMemory.js';
 import { TownTrade } from './townTrade.js';
+import { TownSprawl } from './townSprawl.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -466,8 +467,10 @@ export const TownPoor = {
         const C = TownPoor.config();
         const H = C.hunger || {};
         const here = player ? `${player.q},${player.r}` : null;
+        const told = s => ruled.has(`${s.q},${s.r}`) || `${s.q},${s.r}` === here;
         for (const s of lives) {
-            if (TownHousing.on()) { TownPoor.countLots(s, day); TownHousing.week(s, day); }
+            // (the builders' week, and what the town does when its ground runs out: systems/townSprawl.js)
+            if (TownHousing.on()) { TownPoor.countLots(s, day); TownSprawl.week(world, player, s, day, out || null, told); }
             const p = s.poor;
             if (!p || !out) continue;
             const key = `${s.q},${s.r}`;

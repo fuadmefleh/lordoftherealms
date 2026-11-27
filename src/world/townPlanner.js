@@ -335,7 +335,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         tiles[r][q].customBuilding = { defId: def.id };
         for (const m of def.meta || []) {
             const t = tiles[r + m.r][q + m.q];
-            if (m.q !== 0 || m.r !== 0) t.customBuildingPart = { anchorQ: q, anchorR: r };
+            if (m.q !== 0 || m.r !== 0) t.customBuildingPart = m.walkBehind ? { anchorQ: q, anchorR: r, over: true } : { anchorQ: q, anchorR: r };
             if (m.door) {
                 t._doorMarker = { anchorQ: q, anchorR: r, defId: def.id };
                 t.subTerrain.passable = true;

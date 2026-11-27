@@ -9,6 +9,8 @@ import { TownEras } from '../townEras.js';
 import { TownWalls } from '../townWalls.js';
 import { StreetCover } from '../streetCover.js';
 import { TownGrowth } from '../townGrowth.js';
+import { TownRebuilds } from '../townRebuilds.js';
+import { TownHousing } from '../townHousing.js';
 import { pickNineTileSlot, resolveBrushSeason, resolveNineTileCell, erodeUntileableStubs } from '../../core/nineTile.js';
 
 // What the bare fill under the grass layer reads as, by base terrain (groundName)
@@ -396,7 +398,7 @@ Object.assign(InnerMap, {
         // an open hex where a battle has since been fought)
         const wday = game && game.world && Number.isFinite(game.world.day) ? game.world.day : 0;
         // (and the scaffold of a proclaimed execution, up or down: world/scaffolds.js; the dead on show: world/deadDisplays.js; the town's pit, in the open or gone underground: world/pitRing.js)
-        const memStamp = st ? TownMarks.stamp(st, wday) + Scaffolds.stamp(st, wday) + DeadDisplays.stamp(st, wday) + PitRing.stamp(st) + TownGrowth.stamp(st) : (game && game.world ? TownMarks.fieldMarks(game.world, worldQ, worldR).map(m => m.id).join(',') : '');
+        const memStamp = st ? TownMarks.stamp(st, wday) + Scaffolds.stamp(st, wday) + DeadDisplays.stamp(st, wday) + PitRing.stamp(st) + TownGrowth.stamp(st) + TownRebuilds.stamp(st) : (game && game.world ? TownMarks.fieldMarks(game.world, worldQ, worldR).map(m => m.id).join(',') : '');
         // (and a town whose age has moved on — its era, its walls, its houses weathered and rebuilt by the decade: world/townEras.js)
         const ageStamp = st && game && game.world ? TownEras.stamp(game.world, st) : '';
         const settledAs = st ? `${st.name || 'settlement'}|${st.type || 'village'}|${this._isDawnVillage && this._isDawnVillage(st) ? 'camp' : 'town'}${st.type === 'capital' && st.castle === false ? '|hall' : ''}${era}${memStamp}${ageStamp}` : (memStamp ? `field|${memStamp}` : null);
@@ -705,6 +707,10 @@ Object.assign(InnerMap, {
             if (opts && opts.survey) { tiles._growthLaid = grown; return tiles; }
             // (a street the town laid out before its map could be surveyed: fitted to it now)
             if (CustomBuildings.isLoaded() && CustomObjects.isLoaded()) TownGrowth.settleUnsurveyed(worldTile.settlement, grown);
+            // Old houses its builders have pulled down for denser ones since, rebuilt as row houses and
+            // tenements on their plots (world/townRebuilds.js; recorded on the town, hash-placed)
+            const eraIdx = ['hearth', 'timber', 'stone', 'guild'].indexOf(TownHousing.era(worldTile.settlement));
+            TownRebuilds.lay(tiles, worldTile.settlement, wday, { eraIdx, culture: townOverlay.culture });
             // What the town's history has left on its streets: burnt and rebuilt houses, ruins,
             // statues, cairns, new quarters (world/townMarks.js; hash-placed, draws nothing from rng)
             TownMarks.lay(tiles, worldTile.settlement, wday, townOverlay);

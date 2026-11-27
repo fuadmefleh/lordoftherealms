@@ -758,6 +758,7 @@ Object.assign(InnerMapRenderer, {
         const self = this;
         const items = []; // { sortY, draw() }
         const labelReqs = []; // the NPCs' names wanted this frame, laid out before the draw (_planNpcLabels)
+        const who = []; // figures and goods a building's storeys may hide: outlined over it after the draw (buildingDepth.js)
         const { qMin, qMax, rMin, rMax } = this._frameRange;
         const canvasW = ctx.canvas.width;
         const canvasH = ctx.canvas.height;
@@ -934,7 +935,8 @@ Object.assign(InnerMapRenderer, {
                 } else
                 // ── Ground items (placed from hotbar) ──
                 if (tile.groundItem) {
-                    const gq = q, gr = r, gItem = tile.groundItem.itemId;
+                    const gq = q, gr = r, gItem = tile.groundItem.itemId, gOwner = tile.groundItem;
+                    who.push({ owner: gOwner, q, r, kind: 'pile' });
                     const gIcon = glyphFor(tile.groundItem.icon) || 'satchel';
                     // (set down in the water — the shallows, a pond, the sea: it floats)
                     const afloat = !!((tile._wet || tile._sea) && !tile._bridge && !tile._pier && !tile._deck && !tile._ford);
@@ -962,6 +964,8 @@ Object.assign(InnerMapRenderer, {
                         // The item itself, as pixel art lying on the ground (ui/itemSprites.js);
                         // a small token only while its sheet loads
                         if (!drawItemSprite(ctx, gItem, cx, cy + rad * 0.3, cs * 0.6)) drawMapMarker(ctx, gIcon, cx, dy + cs * 0.45, Math.max(8, cs * 0.22));
+                        // (behind a building's storeys: noted for its outline)
+                        else if (gOwner && self._depthCoverAt(gq, gr) >= 0) self._silNoteFn(gOwner, (c) => drawItemSprite(c, gItem, cx, cy + rad * 0.3, cs * 0.6), cx - cs * 0.4, cy - cs * 0.55, cs * 0.8, cs * 0.85);
                     }});
                 }
             }
@@ -985,12 +989,17 @@ Object.assign(InnerMapRenderer, {
         }
 
         // ── Phase 2: Collect buildings (legacy + custom) ────────────────────────
-        for (let r = rMin; r <= rMax; r++) {
+        // (a tall building's anchor — its ground floor's front — may lie below the view while its
+        // storeys reach up into it: the scan runs on past the bottom for those; buildingDepth.js
+        // keeps the frame's buildings for the cutaway, the outlines and the shadows)
+        self._depthBegin();
+        const rB = Math.min(mapH - 1, rMax + 14);
+        for (let r = rMin; r <= rB; r++) {
             for (let q = qMin; q <= qMax; q++) {
                 const tile = InnerMap.tiles[r][q];
-                if (!tile.visible) continue;
+                if (r > rMax ? !(tile.customBuilding && tile.explored) : !tile.visible) continue;
 
-                if (tile.building) {
+                if (tile.building && r <= rMax) {
                     const screen = camera.worldToScreenFast(q * T, r * T);
                     const dx = Math.floor(screen.x), dy = Math.floor(screen.y);
                     if (dx + ds * 4 < 0 || dx > ctx.canvas.width + ds * 4) continue;
@@ -1019,7 +1028,8 @@ Object.assign(InnerMapRenderer, {
                         const screen = camera.worldToScreenFast(q * T, r * T);
                         const dx = Math.floor(screen.x), dy = Math.floor(screen.y);
                         if (dx + ds * 4 < 0 || dx > ctx.canvas.width + ds * 4) continue;
-                        if (dy + ds * 4 < 0 || dy > ctx.canvas.height + ds * 4) continue;
+                        if (dy + ds * 4 < 0 || dy + ((def.bounds && def.bounds.minRow) || -3) * ds > ctx.canvas.height + ds) continue;
+                        self._depthNote(def, q, r);
 
                         // Sort by origin row so the whole building draws
                         // in front of / behind other sprites based on origin Y
@@ -1031,7 +1041,8 @@ Object.assign(InnerMapRenderer, {
                         const propRef = tile._propertyRef || null, propInfo = propRef ? tile.buildingInfo : null;
                         const siteCb = tile.customBuilding.siteP != null ? tile.customBuilding : null;
                         items.push({ sortY, zLayer: 1, sortH: bldgH, sortX: q, draw() {
-                            self._drawCustomBuilding(ctx, camera, def, cq, cr, ds, ruin, self._siteProgress(propRef, siteCb), wear, spire);
+                            // (its storeys thinned round whoever is behind them, or all of them with Alt held: buildingDepth.js)
+                            self._drawBuildingDepth(ctx, camera, def, cq, cr, ds, ruin, self._siteProgress(propRef, siteCb), wear, spire);
                         }});
                         // (its name over the roof, drawn after the moving parts so a windmill's sails never hide it)
                         if (propInfo) {
@@ -1045,6 +1056,8 @@ Object.assign(InnerMapRenderer, {
             }
         }
 
+        // ── Phase 2.5: The buildings' shadows on the ground by the hour, under every sprite (buildingDepth.js) ──
+        self._drawBuildingShadows(ctx, camera);
         // ── Phase 2a: Dug ground (holes, turned earth, graves): flat, under every sprite ──
         InnerMapDigging.renderGround(ctx, camera, this._frameRange, T);
         // ── Drifts and shafts dug into the rock and the ground; underground, the work's ring and the bats (ui/innerMapMining.js) ──
@@ -1268,6 +1281,7 @@ Object.assign(InnerMapRenderer, {
                 const labelY = stallBox ? stallScr.y - ds * 0.55 : counter ? sy - ds * 2.25 : onPiece ? camera.worldToScreenFast(worldX, onPiece.y + onPiece.h).y - ds * 0.3 : sy;
                 if (camera.zoom > 0.7 && nRef.name) labelReqs.push({ npc: nRef, text: nRef.name, x: sx, y: labelY + ds * 0.3, keeper: !!counter });
 
+                who.push({ owner: nRef, q: Math.floor(worldX / T), r: Math.floor(worldY / T), kind: 'npc', npc: nRef });  // (where drawn, between tiles as they walk)
                 items.push({ sortY, zLayer: 2, draw() {
                     if (clipY != null) { ctx.save(); ctx.beginPath(); ctx.rect(-1e4, -1e4, 2e4, clipY + 1e4); ctx.clip(); }
                     const useSprite = charReady && nRef.preset && InnerMapCharacters.getComposited(nRef.preset);
@@ -1332,6 +1346,7 @@ Object.assign(InnerMapRenderer, {
                         const pale = nRef._sick && typeof ctx.filter === 'string';
                         if (pale) ctx.filter = nRef._sick.abed ? 'saturate(0.35) brightness(1.08) sepia(0.25)' : 'saturate(0.6) brightness(1.05) sepia(0.15)';
                         InnerMapCharacters.drawCharacter(ctx, nRef.preset, nAnim, nDir, bodyTime, cx, cy, cw, ch);
+                        self._silNote(nRef, nRef.preset, nAnim, nDir, bodyTime, cx, cy, cw, ch);
                         if (pale) ctx.filter = 'none';
                         // (the cross on a crusader's tabard, the preacher's cross-staff, the crier's handbell: ui/innerMapTownWorld.js)
                         if (InnerMapTownWorld.wantsOverlay(nRef)) InnerMapTownWorld.drawOverlay(ctx, nRef, cx, cy, cw, ch, nDir, nAnim, now);
@@ -1422,6 +1437,8 @@ Object.assign(InnerMapRenderer, {
             const pos = InnerMap.getPlayerWorldPos();
             const screen = camera.worldToScreenFast(pos.x, pos.y);
             const deathState = this._getDeathAnimState(now);
+            // (what you were drawn as this frame, for your outline behind a building: buildingDepth.js)
+            const pSilOwner = this._pSilOwner || (this._pSilOwner = {});
             let anim = 'idle';
             let direction = this._playerFacing != null ? this._playerFacing : InnerMapCharacters.DIR_DOWN;
             const digging = InnerMapDigging.playerAnim();
@@ -1635,6 +1652,7 @@ Object.assign(InnerMapRenderer, {
                         InnerMapTorchlight.drawHeld(ctx, px, py, ds, pDir, now, true);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, px, py, ds, pDir, chopP, true);
                         InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, pTime != null ? pTime : pSeatTime != null ? pSeatTime : now, cx, cy, charW, charH);
+                        self._silNote(pSilOwner, playerPreset, pAnim, pDir, pTime != null ? pTime : pSeatTime != null ? pSeatTime : now, cx, cy, charW, charH);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, px, py, ds, pDir, chopP, false);
                         InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, false);
                         InnerMapTorchlight.drawHeld(ctx, px, py, ds, pDir, now, false);
@@ -1653,6 +1671,9 @@ Object.assign(InnerMapRenderer, {
             }});
             // Hidden in cover: drawn faint, the eye over the head, who is in reach (ui/innerMapHiding.js)
             InnerMapHiding.wrapPlayerDraw(items[items.length - 1], ctx, px, py, ds);
+            // Behind a building's storeys: a cutaway round you, your outline over it (buildingDepth.js)
+            who.push({ owner: pSilOwner, q: Math.floor(pos.x / T), r: Math.floor(pos.y / T), kind: 'player' });
+            this._depthPlanCut(camera, px, py, ds);
         }
 
         // The quay's people — dockers, the harbourmaster — among the street's, so the pier is under their feet (innerMapLayers/portLife.js)
@@ -1674,6 +1695,8 @@ Object.assign(InnerMapRenderer, {
         this._deferredNames = [];
         try {
             for (const item of items) item.draw();
+            // Whoever a building's storeys hide, traced over it (buildingDepth.js)
+            this._drawOccludedOutlines(ctx, who);
             // The names over every body (each still stepped clear of its neighbours)
             for (const d of this._deferredNames) d();
         } finally {

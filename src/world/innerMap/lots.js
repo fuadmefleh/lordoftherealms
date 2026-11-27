@@ -110,8 +110,10 @@ Object.assign(InnerMap, {
             const tall = b.type === 'tenement' || b.type === 'rowhouse';
             const seed = _strHash(`${settlement.foundingName || settlement.name}|${lot.id}|${b.type}`);
             // (no room behind it for a tenement's storeys: row houses, then a house)
-            if (tall && this._standOnLot(lot, b.type, seed, settlement, { overhang: 7, exact: true })) continue;
-            if (b.type === 'tenement' && this._standOnLot(lot, 'rowhouse', seed, settlement, { overhang: 5, exact: true })) continue;
+            // (only their ground storey needs the ground: the storeys and roof above it overhang the yards,
+            // paths and back gardens behind, walked under — world/customBuildings.js footprintOf)
+            if (tall && this._standOnLot(lot, b.type, seed, settlement, { overhang: 12, exact: true })) continue;
+            if (b.type === 'tenement' && this._standOnLot(lot, 'rowhouse', seed, settlement, { overhang: 8, exact: true })) continue;
             // (...else the plainest town house that fits, not the culture's hut: it is a house of rooms)
             if (tall && this._standOnLot(lot, 'house', seed, settlement, { common: true })) continue;
             this._standOnLot(lot, b.type || 'house', seed, settlement);
@@ -121,7 +123,8 @@ Object.assign(InnerMap, {
     _lotHasBuilding(lot) {
         for (let r = lot.r0; r <= lot.r1; r++) for (let q = lot.q0; q <= lot.q1; q++) {
             const t = this.tiles[r] && this.tiles[r][q];
-            if (t && (t.customBuilding || t.customBuildingPart)) return true;
+            // (another's upper storeys reaching over the lot's back are no building on it)
+            if (t && (t.customBuilding || (t.customBuildingPart && !t.customBuildingPart.over))) return true;
         }
         return false;
     },
@@ -173,15 +176,19 @@ Object.assign(InnerMap, {
                 return fq >= lot.q0 && fq <= lot.q1 && fr >= top && fr <= bottom;
             });
             if (!fits) continue;
-            // (reaching past the lot, a bush or a tree in the way is grubbed up, not a reason to build a cottage)
-            if (top < lot.r0 && !this._openNearLot(lot, q + def.bounds.minCol, q + def.bounds.maxCol, top, lot.r0 - 1, true)) continue;
-            if (bottom > lot.r1 && !this._openNearLot(lot, q + def.bounds.minCol, q + def.bounds.maxCol, lot.r1 + 1, bottom + 1, true)) continue;
+            // Reaching past the lot: its ground storey wants open ground (a bush or a tree in the way is
+            // grubbed up, not a reason to build a cottage), the storeys and roof above only somewhere to
+            // hang over — a yard, a path, grass, another lot's back garden; never water, a wall or another's
+            // ground floor (_overNearLot). A tree under them comes down; a fence or a bench stays, behind.
+            if ((top < lot.r0 || bottom > lot.r1) && !this._reachOk(lot, def, q, r)) continue;
             if (top < lot.r0) this._clearFlora(q + def.bounds.minCol, q + def.bounds.maxCol, top, lot.r0 - 1);
             if (bottom > lot.r1) this._clearFlora(q + def.bounds.minCol, q + def.bounds.maxCol, lot.r1 + 1, bottom + 1);
             this.tiles[r][q].customBuilding = { defId: def.id, lotId: lot.id };
             for (const m of def.meta || []) {
                 const t = this.tiles[r + m.r][q + m.q];
-                if (m.q !== 0 || m.r !== 0) t.customBuildingPart = { anchorQ: q, anchorR: r };
+                // (over another's upper storeys, theirs it stays: the nearer is drawn over the farther)
+                if (m.walkBehind && t.customBuildingPart) continue;
+                if (m.q !== 0 || m.r !== 0) t.customBuildingPart = m.walkBehind ? { anchorQ: q, anchorR: r, over: true } : { anchorQ: q, anchorR: r };
                 if (m.door) {
                     t._doorMarker = { anchorQ: q, anchorR: r, defId: def.id };
                     t.subTerrain.passable = true;
@@ -192,6 +199,36 @@ Object.assign(InnerMap, {
             return { q, r, defId: def.id };
         }
         return false;
+    },
+
+    /**
+     * May a design anchored at (q, r) on the lot reach past it? Each of its cells beyond the lot:
+     * a footprint cell (and, south of the lot, the step before its front) on open ground
+     * (_openNearLot); a walked-behind cell over ground it may hang over (_overNearLot).
+     */
+    _reachOk(lot, def, q, r) {
+        for (const m of def.meta || []) {
+            const fq = q + m.q, fr = r + m.r;
+            if (fr >= lot.r0 && fr <= lot.r1) continue;
+            if (m.walkBehind) {
+                if (!this._overNearLot(lot, fq, fr)) return false;
+                continue;
+            }
+            if (!this._openNearLot(lot, fq, fq, fr, fr, true)) return false;
+            if (fr > lot.r1 && m.r === def.bounds.maxRow && !this._openNearLot(lot, fq, fq, fr + 1, fr + 1, true)) return false;
+        }
+        return true;
+    },
+
+    /** Can a building's upper storeys hang over (q, r), beyond the lot? Not water, a wall, the map's edge, a crag or another's ground floor. */
+    _overNearLot(lot, q, r) {
+        const t = this.tiles[r] && this.tiles[r][q];
+        if (!t || r < 1 || r >= this.tiles.length - 1 || q < 1 || q >= this.tiles[0].length - 1) return false;
+        if (t._wet || t._sea || t._townWall || t.building || t.customBuilding || t._cragTop !== undefined) return false;
+        if (t.customBuildingPart && !t.customBuildingPart.over) return false;
+        // (a fence, a cart, a bench under it stays, drawn behind; bare blocked ground — a rock face — does not go under a roof)
+        if (t.subTerrain && t.subTerrain.passable === false && !t.customObject && !t.customObjectPart) return false;
+        return true;
     },
 
     /** Is the ground beyond a lot (rows r0..r1, columns q0..q1) open for a building to reach onto? */

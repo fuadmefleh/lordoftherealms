@@ -540,7 +540,7 @@ export const TownLabour = {
         // (and the newcomers camped outside with nothing, while the camp stands: world/townGrowth.js;
         // and the hungry poor's petty theft: systems/townPoor.js)
         const crimeT = _clamp(Math.max(0, idleShare - _num(Cr.idleFree)) * _num(Cr.perIdle) + Math.max(0, _num(Cr.poorLine) - lab.wel.peasants) * _num(Cr.perMisery)
-            + TownGrowth.campCrime(settlement) + _num(settlement.poor && settlement.poor.crime), 0, 1);
+            + TownGrowth.campCrime(settlement) + TownHousing.suburbCrime(settlement) + _num(settlement.poor && settlement.poor.crime), 0, 1);
         const ca = 1 - Math.pow(1 - _clamp(_num(Cr.alpha, 0.25), 0, 1), k / 4);
         lab.crime = _r3(_num(lab.crime) + (crimeT - _num(lab.crime)) * ca);
 

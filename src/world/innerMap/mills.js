@@ -270,6 +270,9 @@ Object.assign(InnerMap, {
         for (const m of def.meta || []) {
             const t = tiles[r + m.r] && tiles[r + m.r][q + m.q];
             if (!t) continue;
+            // (a cell under another's overhanging storeys is theirs: left be)
+            const p = t.customBuildingPart;
+            if (p && (m.q || m.r) && (p.anchorQ !== q || p.anchorR !== r)) continue;
             t.customBuildingPart = null;
             delete t._doorMarker;
             t.subTerrain.passable = true;
@@ -281,7 +284,8 @@ Object.assign(InnerMap, {
         tiles[r][q].customBuilding = { defId: def.id };
         for (const m of def.meta || []) {
             const t = tiles[r + m.r][q + m.q];
-            if (m.q !== 0 || m.r !== 0) t.customBuildingPart = { anchorQ: q, anchorR: r };
+            if (m.walkBehind && t.customBuildingPart) continue;
+            if (m.q !== 0 || m.r !== 0) t.customBuildingPart = m.walkBehind ? { anchorQ: q, anchorR: r, over: true } : { anchorQ: q, anchorR: r };
             if (m.door) {
                 t._doorMarker = { anchorQ: q, anchorR: r, defId: def.id };
                 t.subTerrain.passable = true;

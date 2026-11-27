@@ -78,6 +78,57 @@ function expandDerived(b) {
     return { ...base, ...rest, layers, meta: base.meta, bounds: base.bounds, _layerMaps: undefined, _metaMap: undefined };
 }
 
+const _ROOF_SHEET = /roofs_|\/Roofing\//i;
+
+/**
+ * A building's ground footprint: the rows of it that stand on the ground and block.
+ * A facade drawn front-on shows its storeys stacked above its ground floor and the roof
+ * above them, but only the ground storey's depth stands on the ground: per column, the
+ * bottom `depth` rows of its wall (non-roof) cells, depth = def.footprintRows, else 3
+ * (a storey of the kit is 3 rows), 4 for a building 9 or more wide; never more than the
+ * column's wall rows. Everything above — upper storeys, roof, chimneys — is walked behind.
+ * → { blocks(q, r), footTop, storeyTop, wallTop, depth }  (rows off the anchor; footTop the
+ * highest footprint row, storeyTop the first storey above it, wallTop the top of the walls)
+ */
+export function footprintOf(def) {
+    const bd = def.bounds || { minCol: 0, minRow: 0, maxCol: 0, maxRow: 0 };
+    const W = bd.maxCol - bd.minCol + 1;
+    const D = Math.max(1, Math.floor(Number(def.footprintRows) || (W >= 9 ? 4 : 3)));
+    const floor = def.layers && def.layers.floor;
+    const cells = Array.isArray(floor) ? floor : floor && typeof floor === 'object'
+        ? Object.keys(floor).map(k => { const [q, r] = k.split(',').map(Number); return { q, r, ...floor[k] }; }) : [];
+    const col = new Map();   // q → { bottom, walls }
+    let wallTop = Infinity;
+    for (const c of cells) {
+        if (!c || !Number.isInteger(c.q)) continue;
+        const e = col.get(c.q) || { bottom: -Infinity, walls: 0 };
+        e.bottom = Math.max(e.bottom, c.r);
+        if (!_ROOF_SHEET.test(c.sheetPath || '')) { e.walls++; wallTop = Math.min(wallTop, c.r); }
+        col.set(c.q, e);
+    }
+    const topOf = q => {
+        const e = col.get(q);
+        if (!e || !e.walls) return bd.maxRow - D + 1;
+        return e.bottom - Math.min(D, e.walls) + 1;
+    };
+    let footTop = Infinity;
+    for (let q = bd.minCol; q <= bd.maxCol; q++) footTop = Math.min(footTop, topOf(q));
+    if (!Number.isFinite(footTop)) footTop = bd.maxRow - D + 1;
+    if (!Number.isFinite(wallTop)) wallTop = bd.minRow;
+    const tops = new Map();
+    return {
+        depth: D,
+        footTop,
+        storeyTop: footTop - 3,
+        wallTop,
+        blocks(q, r) {
+            let t = tops.get(q);
+            if (t === undefined) { t = topOf(q); tops.set(q, t); }
+            return r >= t;
+        },
+    };
+}
+
 function registerBuilding(b, pooled = true) {
     // A culture building as the poor, middling or rich build it: registered by its own id
     // (a tile names it) and found from its building by tierVariant, never drawn from a pool
@@ -121,7 +172,14 @@ function registerBuilding(b, pooled = true) {
         ? { minCol: bMinQ, minRow: bMinR, maxCol: bMaxQ, maxRow: bMaxR }
         : { minCol: 0, minRow: 0, maxCol: (b.width || 1) - 1, maxRow: (b.height || 1) - 1 });
 
-    const def = { ...b, bounds, _layerMaps: layerMaps, _metaMap: metaMap };
+    // Only the ground storey blocks: the upper storeys, roof and chimneys are walked behind (footprintOf)
+    const foot = footprintOf({ ...b, bounds });
+    const meta = (Array.isArray(b.meta) ? b.meta : []).map(m => {
+        if (!m || m.door || !m.impassable || foot.blocks(m.q, m.r)) return m;
+        return { ...m, impassable: false, walkBehind: true };
+    });
+    for (const m of meta) metaMap[`${m.q},${m.r}`] = m;
+    const def = { ...b, meta, bounds, _layerMaps: layerMaps, _metaMap: metaMap, _foot: foot };
     _defs.set(b.id, def);
     if (!pooled) return;
 
@@ -164,6 +222,22 @@ export const CustomBuildings = {
     },
 
     getBuilding(id) { return _defs.get(id) || null; },
+
+    /** The ground footprint of a building (footprintOf): which of its rows block, and where its storeys start. */
+    footprint(def) {
+        if (!def) return null;
+        if (!def._foot) def._foot = footprintOf(def);
+        return def._foot;
+    },
+
+    /**
+     * What a tile of a building stood with its anchor at (q, r) carries for meta cell m: its
+     * customBuildingPart — `over` on a cell walked behind (above the footprint: drawn over
+     * whoever stands there, never blocking them).
+     */
+    partFor(m, q, r) {
+        return m && m.walkBehind ? { anchorQ: q, anchorR: r, over: true } : { anchorQ: q, anchorR: r };
+    },
     getByType(type) { return _byType.get(type) || []; },
     /** A culture's own buildings of a type (data/architecture.json), [] when it has none */
     getByCulture(culture, type) { return _byCulture.get(`${culture}|${type}`) || []; },

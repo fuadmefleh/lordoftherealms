@@ -828,6 +828,28 @@ function runOne(seed) {
                 };
             })();
             out(`  [${seed}] poor y${year} ${JSON.stringify(row.poor)}`);
+            // When the ground runs out (world/townLand.js, systems/townSprawl.js): towns whose ground is
+            // all built on, walls filled, old houses rebuilt denser, suburbs, satellite villages
+            row.land = (() => {
+                let full = 0, wallFull = 0, rd = 0, rdNow = 0, sub = 0, subAt = 0, sats = 0, wood = 0, cleared = 0;
+                const names = [];
+                for (const v of w.getSettlementViews()) {
+                    const h = v.housing;
+                    const L = h && h.land;
+                    if (!L) continue;
+                    if (L.full != null) { full++; if (names.length < 8) names.push(`${v.name}:${Math.round(v.population)}`); }
+                    if (L.wallFull != null) wallFull++;
+                    if (h.rd) rd += h.rd.n || 0;
+                    for (const e of h.q || []) if (e && e[3]) rdNow++;
+                    if (L.sub) sub++;
+                    if (L.subAt) subAt++;
+                    sats += (L.sats || []).length;
+                    wood += L.wood || 0;
+                    cleared += L.cleared || 0;
+                }
+                return { full, wallFull, rd, rdNow, sub, subAt, sats, wood: Math.round(wood), cleared, names };
+            })();
+            out(`  [${seed}] land y${year} ${JSON.stringify(row.land)}`);
             rows.push(row);
             out(`  [${seed}] gg y${year} piles ${row.gg.piles} qty ${row.gg.qty} in ${row.gg.in} out ${row.gg.out} gap ${row.gg.gap} finds ${row.gg.findsHeld} food ${row.gg.food}`);
             if (ENV.EG_MILTRACE) milTraceYear(game, seed, year);

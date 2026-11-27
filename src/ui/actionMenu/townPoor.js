@@ -84,6 +84,17 @@ export function poorHtml(game, s) {
         html += `<div style="margin-top:4px;">Houses for <b>${H.cap.toLocaleString()}</b> (${pct(H.crowd)} full) and rooms to let for ${H.rooms.toLocaleString()} more · ${kinds}</div>`;
         if (H.lodged || H.rough) html += `<div style="margin-top:3px; color:${H.rough ? '#e67e22' : '#e8a040'};">${H.lodged.toLocaleString()} lodgers in rooms let${H.rough ? ` · ${H.rough.toLocaleString()} doubled up or sleeping rough` : ''}</div>`;
         html += `<div style="margin-top:3px;">Rents ${H.rentMult >= 1 ? '+' : ''}${Math.round((H.rentMult - 1) * 100)}% on the usual · ${H.building ? `${H.building} going up · ` : ''}${Math.round(H.free)} free plots of ${Math.round(H.plots)} · next to rise: ${HOUSE[H.next] || H.next}</div>`;
+        const Ld = H.land;
+        if (Ld) {
+            const bits = [`Land: <b>${Ld.used.toLocaleString()} of ${Ld.of.toLocaleString()} plots</b> used${Ld.wall != null && !Ld.sub ? ' (inside its walls)' : ''}`];
+            if (Ld.wood > 0) bits.push(`${Ld.wood.toLocaleString()} more under trees, to be cleared`);
+            if (Ld.full) bits.push('<span style="color:#e67e22;">no ground left to build on</span>');
+            if (Ld.sub) bits.push(`${Ld.sub} outside the walls (${Ld.subN.toLocaleString()} dwellings)`);
+            if (Ld.subAt) bits.push('a quarter of it built on the next hex');
+            if (Ld.rd || Ld.rdNow) bits.push(`${Ld.rd.toLocaleString()} old house${Ld.rd === 1 ? '' : 's'} rebuilt denser${Ld.rdNow ? `, ${Ld.rdNow} going up` : ''}`);
+            if (Ld.sats.length) bits.push(`its people founded ${Ld.sats.join(', ')}`);
+            html += `<div style="margin-top:3px;">${bits.join(' · ')}</div>`;
+        }
         html += `<div style="${NOTE}">Past its houses, a town lets its upper rooms; past those its people double up and sleep rough — rents climb, fevers and fires spread, it grows no more and its people leave. Where plots are scarce it builds row houses and tenements. You may raise a tenement on a lot of yours and let it by the room.</div>`;
         html += '</div>';
     }
